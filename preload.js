@@ -1,0 +1,156 @@
+const { contextBridge } = require('electron');
+const { shell } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { nanoid } = require('nanoid-cjs');
+
+/**
+ * 获取 hosts 文件路径
+ */
+function getHostsPath() {
+    const platform = os.platform();
+    if (platform === 'win32') {
+        return 'C:\\Windows\\System32\\drivers\\etc\\hosts';
+    } else {
+        return '/etc/hosts';
+    }
+}
+
+/**
+ * 获取应用数据目录
+ */
+function getAppDataPath() {
+    // 尝试从 canbox.store 获取应用数据路径
+    try {
+        if (window.canbox && window.canbox.store) {
+            // 由于 store 是异步的，我们这里简化处理，直接使用临时目录
+            // 备份功能会在用户第一次启动时创建
+        }
+    } catch (e) {
+        console.warn('无法获取应用数据路径:', e);
+    }
+    // 使用系统临时目录作为默认路径
+    return os.tmpdir();
+}
+
+/**
+ * 读取 hosts 文件
+ */
+function readHosts() {
+    const hostsPath = getHostsPath();
+    try {
+        const content = fs.readFileSync(hostsPath, 'utf8');
+        return { success: true, data: content };
+    } catch (error) {
+        return { success: false, msg: `读取 hosts 文件失败: ${error.message}` };
+    }
+}
+
+/**
+ * 写入 hosts 文件（使用 sudo-prompt 提权）
+ */
+function applyHosts(content, callback) {
+    const tempFile = path.join(os.tmpdir(), 'hosts-' + nanoid() + '.tmp');
+    fs.writeFileSync(tempFile, content, 'utf8');
+
+    const platform = os.platform();
+    let command;
+    const options = {
+        name: 'HostsBox',
+        icns: 'public/logo.png', // macOS 图标
+    };
+
+    if (platform === 'win32') {
+        // Windows: 使用 type 命令
+        command = `type "${tempFile}" > "%SystemRoot%\\System32\\drivers\\etc\\hosts"`;
+    } else if (platform === 'darwin') {
+        // macOS: 使用 sudo + cat
+        command = `cat "${tempFile}" > /etc/hosts`;
+    } else {
+        // Linux: 使用 pkexec + cat
+        command = `pkexec sh -c 'cat "${tempFile}" > /etc/hosts'`;
+    }
+
+    // 根据平台选择 sudo 或 pkexec
+    const sudo = require('sudo-prompt');
+
+    sudo.exec(command, options, (error, stdout, stderr) => {
+        // 清理临时文件
+        try {
+            fs.unlinkSync(tempFile);
+        } catch (e) {
+            console.warn('清理临时文件失败:', e);
+        }
+
+        if (error) {
+            if (error.message.includes('not') && error.message.includes('grant')) {
+                callback({ success: false, code: 'cancel', msg: '用户取消提权' });
+            } else {
+                callback({ success: false, code: 'failed', msg: '写入 hosts 失败: ' + error.message });
+            }
+        } else {
+            console.log('Hosts 文件更新成功');
+            callback({ success: true, code: 'success' });
+        }
+    });
+}
+
+/**
+ * 备份 hosts 文件
+ */
+function backupHosts() {
+    const hostsPath = getHostsPath();
+    const backupPath = path.join(getAppDataPath(), 'hosts.backup');
+
+    try {
+        if (fs.existsSync(backupPath)) {
+            return { success: true }; // 备份已存在
+        }
+        const content = fs.readFileSync(hostsPath, 'utf8');
+        fs.writeFileSync(backupPath, content, 'utf8');
+        console.log('Hosts 文件已备份到:', backupPath);
+        return { success: true };
+    } catch (error) {
+        return { success: false, msg: `备份 hosts 文件失败: ${error.message}` };
+    }
+}
+
+/**
+ * 打开 hosts 所在目录
+ */
+function openHostsDir() {
+    const hostsPath = getHostsPath();
+    shell.showItemInFolder(hostsPath);
+    return { success: true };
+}
+
+/**
+ * 创建第一个备份
+ */
+function createFirstBackup() {
+    backupHosts();
+}
+
+// 初始化时创建备份
+createFirstBackup();
+
+contextBridge.exposeInMainWorld('hostsbox', {
+    // 获取系统 hosts 内容
+    getHosts: () => readHosts(),
+
+    // 应用 hosts 内容到系统（使用回调）
+    applyHosts: (content) => {
+        return new Promise((resolve) => {
+            applyHosts(content, (result) => {
+                resolve(result);
+            });
+        });
+    },
+
+    // 打开 hosts 所在目录
+    openHostsDir: () => openHostsDir(),
+
+    // 备份 hosts 文件
+    backupHosts: () => backupHosts()
+});

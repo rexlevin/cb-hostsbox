@@ -1,0 +1,10 @@
+{
+    "files": [
+        "dist/**/*",
+        "preload.js",
+        "public/**/*",
+        "app.json",
+        "README.md"
+    ],
+    "outputDir": "./dist-app"
+}

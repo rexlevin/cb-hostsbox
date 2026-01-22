@@ -1,16 +1,19 @@
 {
   "name": "cb-hostsbox",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5175",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "element-plus": "^2.13.1",
     "nanoid-cjs": "^0.0.7",
+    "prismjs": "^1.30.0",
+    "sudo-prompt": "^9.2.1",
     "vue": "^3.5.17"
   },
   "devDependencies": {
