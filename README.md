@@ -78,16 +78,20 @@ npm run build
 ```
 cb-hostsbox/
 ├── src/
-│   ├── App.vue           # 主应用组件
-│   ├── main.js           # 入口文件
-│   └── style.css         # 样式文件
+│   ├── App.vue                 # 主应用组件（UI层）
+│   ├── main.js                 # 入口文件
+│   ├── style.css               # 样式文件
+│   ├── composables/
+│   │   └── useHostsEntries.js  # hosts 配置管理业务逻辑
+│   └── utils/
+│       └── hostsHighlight.js   # 代码高亮工具函数
 ├── public/
-│   └── vite.svg          # 图标
+│   └── logo*.png               # 图标资源
 ├── types/
-│   └── canbox.d.ts       # Canbox 类型定义
-├── app.json              # Canbox 应用配置
-├── preload.js            # 预加载脚本（包含 hosts 操作逻辑）
-├── cb.build.json         # 打包配置
+│   └── canbox.d.ts             # Canbox 类型定义
+├── app.json                    # Canbox 应用配置
+├── preload.js                  # 预加载脚本（包含 hosts 操作和数据库API）
+├── cb.build.json               # 打包配置
 ├── package.json
 └── vite.config.js
 ```
@@ -108,77 +112,13 @@ cb-hostsbox/
 }
 ```
 
-## API 说明
-
-### 前端 API (通过 preload.js 暴露)
-
-```javascript
-// 读取系统 hosts（同步）
-window.hostsbox.getHosts()
-// 返回: { success: boolean, data: string, msg?: string }
-
-// 应用 hosts 到系统（异步，使用 sudo-prompt 提权）
-window.hostsbox.applyHosts(content: string)
-// 返回: Promise<{ success: boolean, code: string, msg?: string }>
-// code: 'success' | 'cancel' | 'failed'
-
-// 打开 hosts 所在目录（同步）
-window.hostsbox.openHostsDir()
-// 返回: { success: boolean, msg?: string }
-
-// 备份 hosts 文件（同步）
-window.hostsbox.backupHosts()
-// 返回: { success: boolean, msg?: string }
-```
-
 ## 安全说明
-
-- 修改系统 hosts 文件需要管理员权限（通过 sudo-prompt 提权）
-- Windows: 使用 UAC（用户账户控制）
-- Linux: 使用 pkexec (PolicyKit)
-- macOS: 使用 sudo
-- 所有危险操作都会弹出确认对话框
-- 写入 hosts 前会自动备份原文件到应用数据目录
-
-## 架构设计
-
-### 为什么不需要侵入 canbox 主进程？
-
-原 hostsbox 项目已经在 preload.js 中直接使用 sudo-prompt 进行提权操作，这种方式：
-
-1. **符合 Canbox 平台设计**: 应用自包含，不侵入平台
-2. **简单高效**: 直接在 preload 中处理，无需额外的 IPC 通信
-3. **跨平台**: sudo-prompt 自动处理不同平台的提权机制
 
 ### 权限处理机制
 
 - **Windows**: `sudo-prompt` 通过 UAC 提示用户确认
 - **Linux**: `sudo-prompt` 使用 pkexec (PolicyKit) 提示输入密码
 - **macOS**: `sudo-prompt` 使用 sudo 提示输入密码
-
-## 故障排查
-
-### 问题: "写入 hosts 失败"
-
-**原因**:
-- 用户取消提权操作
-- 密码输入错误
-- hosts 文件被占用
-
-**解决方案**:
-- 检查 hosts 文件是否被其他程序锁定
-- 确认用户密码正确
-- 检查磁盘空间
-
-### 问题: 权限对话框不显示
-
-**原因**:
-- sudo-prompt 未正确安装
-- Flatpak 环境下的权限限制
-
-**解决方案**:
-- 检查 sudo-prompt 是否正确安装
-- 在非 Flatpak 环境中测试
 
 ## 许可证
 

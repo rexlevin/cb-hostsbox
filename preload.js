@@ -18,20 +18,46 @@ function getHostsPath() {
 }
 
 /**
- * 获取应用数据目录
+ * 获取应用数据目录（用户文档目录）
  */
 function getAppDataPath() {
-    // 尝试从 canbox.store 获取应用数据路径
-    try {
-        if (window.canbox && window.canbox.store) {
-            // 由于 store 是异步的，我们这里简化处理，直接使用临时目录
-            // 备份功能会在用户第一次启动时创建
+    const platform = os.platform();
+    const homeDir = os.homedir();
+
+    if (platform === 'win32') {
+        // Windows: 使用系统语言判断文档目录
+        const lang = os.userInfo().shell ? os.userInfo().shell : 'en-US';
+        if (lang.includes('zh')) {
+            return path.join(homeDir, 'Documents');
+        } else {
+            return path.join(homeDir, 'Documents');
         }
-    } catch (e) {
-        console.warn('无法获取应用数据路径:', e);
+    } else if (platform === 'darwin') {
+        // macOS: ~/Documents
+        return path.join(homeDir, 'Documents');
+    } else {
+        // Linux: ~/Documents (如果存在) 或 ~/文档
+        const docsEn = path.join(homeDir, 'Documents');
+        const docsCn = path.join(homeDir, '文档');
+
+        // 优先使用存在的目录
+        if (fs.existsSync(docsEn)) {
+            return docsEn;
+        } else if (fs.existsSync(docsCn)) {
+            return docsCn;
+        } else {
+            // 都不存在则创建 Documents
+            try {
+                if (!fs.existsSync(docsEn)) {
+                    fs.mkdirSync(docsEn, { recursive: true });
+                }
+                return docsEn;
+            } catch (e) {
+                console.warn('创建文档目录失败:', e);
+                return homeDir;
+            }
+        }
     }
-    // 使用系统临时目录作为默认路径
-    return os.tmpdir();
 }
 
 /**
@@ -104,9 +130,6 @@ function backupHosts() {
     const backupPath = path.join(getAppDataPath(), 'hosts.backup');
 
     try {
-        if (fs.existsSync(backupPath)) {
-            return { success: true }; // 备份已存在
-        }
         const content = fs.readFileSync(hostsPath, 'utf8');
         fs.writeFileSync(backupPath, content, 'utf8');
         console.log('Hosts 文件已备份到:', backupPath);
@@ -153,4 +176,59 @@ contextBridge.exposeInMainWorld('hostsbox', {
 
     // 备份 hosts 文件
     backupHosts: () => backupHosts()
+});
+
+// 数据库操作 API
+contextBridge.exposeInMainWorld('hostsboxDB', {
+    // 获取所有配置
+    getAllEntries: async () => {
+        try {
+            const result = await window.canbox.db.get({
+                selector: {
+                    type: 'hosts_entry'
+                }
+            });
+            if (result && result.docs) {
+                return { success: true, data: result.docs.map(doc => ({ ...doc, active: doc.active || false })) };
+            }
+            return { success: true, data: [] };
+        } catch (error) {
+            return { success: false, msg: error.message };
+        }
+    },
+
+    // 创建配置
+    createEntry: async (entry) => {
+        try {
+            const doc = {
+                type: 'hosts_entry',
+                ...entry,
+                createTime: Date.now()
+            };
+            const result = await window.canbox.db.put(doc);
+            return { success: true, id: result.id, rev: result.rev };
+        } catch (error) {
+            return { success: false, msg: error.message };
+        }
+    },
+
+    // 更新配置
+    updateEntry: async (entry) => {
+        try {
+            const result = await window.canbox.db.put(entry);
+            return { success: true, rev: result.rev };
+        } catch (error) {
+            return { success: false, msg: error.message };
+        }
+    },
+
+    // 删除配置
+    deleteEntry: async (id, rev) => {
+        try {
+            await window.canbox.db.remove({ _id: id, _rev: rev });
+            return { success: true };
+        } catch (error) {
+            return { success: false, msg: error.message };
+        }
+    }
 });
