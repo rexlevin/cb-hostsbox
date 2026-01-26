@@ -104,72 +104,24 @@
 .content-area {
   flex: 1;
   overflow: auto;
-  background: #fff;
+  background: #fafafa;
   height: 100%;
 }
 
-/* 编辑区域（统一样式） */
+/* 编辑区域（CodeMirror） */
 .editor-area {
   height: 100%;
+  overflow: auto;
 }
 
-/* 可编辑的code标签 */
-code[contenteditable="true"] {
-  outline: none;
-  display: block;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  cursor: text;
+/* CodeMirror 容器 */
+.editor-area .cm-editor {
+  height: 100%;
 }
 
-code[contenteditable="true"]:focus {
-  outline: none;
-  background: #f5f7fa;
-}
-
-/* Prism 高亮样式 */
-pre[class*="language-"] {
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  height: auto;
-}
-
-/* Prism 行号插件样式 */
-pre[class*="language-"].line-numbers {
-  padding-left: 0;
-  padding: 0 8px;
-}
-
-.line-numbers .line-numbers-rows {
-  left: -8px;
-  width: 40px;
-}
-
-.line-numbers-rows > span {
-  padding-right: 8px;
-}
-
-code[class*="language-"] {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+.editor-area .cm-scroller {
+  overflow: auto;
+  font-family: 'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono';
   font-size: 14px;
   line-height: 1.6;
-}
-
-/* 代码着色 */
-.token.comment {
-  color: #6a9955;
-  font-style: italic;
-}
-
-.token.ip {
-  color: #b5cea8;
-}
-
-.token.domain {
-  color: #9cdcfe;
-}
-
-.token.hosts-line {
-  color: #d4d4d4;
 }

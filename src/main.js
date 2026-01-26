@@ -3,7 +3,6 @@ import './style.css'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import 'prismjs/themes/prism-tomorrow.css'
 import App from './App.vue'
 
 const app = createApp(App)

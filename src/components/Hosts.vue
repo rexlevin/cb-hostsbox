@@ -36,9 +36,7 @@
 
         <!-- 右侧内容区 -->
         <main class="content-area">
-            <div class="editor-area">
-                <pre class="language-hosts line-numbers"><code ref="highlightRef" class="language-hosts" contenteditable="true" @input="handleEditorInput" @blur="handleEditorBlur">{{ currentContent }}</code></pre>
-            </div>
+            <div ref="editorRef" class="editor-area"></div>
         </main>
 
         <!-- 新增配置对话框 -->
@@ -66,14 +64,15 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Check, Delete, Monitor, Document } from '@element-plus/icons-vue'
 import { useHostsEntries } from '../composables/useHostsEntries.js'
-import Prism from 'prismjs'
-import 'prismjs/themes/prism-tomorrow.css'
-import 'prismjs/plugins/line-numbers/prism-line-numbers.css'
-import 'prismjs/plugins/line-numbers/prism-line-numbers.js'
+import { EditorView, basicSetup } from 'codemirror'
+import { EditorState } from '@codemirror/state'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { StreamLanguage } from '@codemirror/language'
+import { properties } from '@codemirror/legacy-modes/mode/properties'
 
 // 使用 composable
 const {
@@ -109,28 +108,94 @@ const newEntry = ref({
     name: ''
 })
 
-// 编辑器引用
-const highlightRef = ref(null)
-const isEditing = ref(false)
+// 编辑器引用和实例
+const editorRef = ref(null)
+let editorView = null
+let isUpdatingFromWatch = false
 
 // 初始化
 onMounted(async () => {
     await initApp()
     document.addEventListener('keyup', handleKeyPress)
-    highlightCode()
+    nextTick(() => {
+        initEditor()
+    })
 })
 
 onBeforeUnmount(() => {
     document.removeEventListener('keyup', handleKeyPress)
+    if (editorView) {
+        editorView.destroy()
+    }
 })
+
+// 监听当前内容变化，用于更新编辑器
+watch(currentContent, (newContent) => {
+    console.log('watch triggered, newContent:', newContent)
+    if (editorView && !isUpdatingFromWatch) {
+        isUpdatingFromWatch = true
+        const transaction = editorView.state.update({
+            changes: {
+                from: 0,
+                to: editorView.state.doc.length,
+                insert: newContent || ''
+            }
+        })
+        editorView.dispatch(transaction)
+        nextTick(() => {
+            isUpdatingFromWatch = false
+        })
+    }
+})
+
+// 初始化编辑器
+function initEditor() {
+    nextTick(() => {
+        if (editorRef.value) {
+            const extensions = [
+                basicSetup,
+                oneDark,
+                StreamLanguage.define(properties),
+                EditorView.updateListener.of((update) => {
+                    if (update.docChanged && !isUpdatingFromWatch) {
+                        currentContent.value = update.state.doc.toString()
+                    }
+                }),
+                EditorView.theme({
+                    '&': {
+                        height: '100%'
+                    },
+                    '.cm-scroller': {
+                        overflow: 'auto',
+                        fontFamily: "'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace"
+                    },
+                    '.cm-content': {
+                        fontFamily: "'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace"
+                    }
+                })
+            ]
+
+            console.log('initEditor currentContent:', currentContent.value)
+
+            editorView = new EditorView({
+                state: EditorState.create({
+                    doc: currentContent.value || '',
+                    extensions: extensions
+                }),
+                parent: editorRef.value
+            })
+
+            console.log('editorView doc:', editorView.state.doc.toString())
+        }
+    })
+}
+
+
 
 // 菜单选择处理
 function handleMenuSelect(index) {
     if (index === 'system') {
         selectSystemHosts()
-        nextTick(() => {
-            highlightCode()
-        })
     } else {
         selectEntry(index)
     }
@@ -144,12 +209,7 @@ function openHostsDirectory() {
     }
 }
 
-// 监听当前内容变化，用于高亮显示
-watch([currentContent, activeTab], () => {
-    nextTick(() => {
-        highlightCode()
-    })
-})
+
 
 // 显示新增配置对话框
 function showAddEntryDialog() {
@@ -174,8 +234,8 @@ async function confirmAddEntry() {
         addDialogVisible.value = false
         selectEntry(entryId)
         nextTick(() => {
-            if (highlightRef.value) {
-                highlightRef.value.focus()
+            if (editorView) {
+                editorView.focus()
             }
         })
     }
@@ -236,26 +296,11 @@ async function handleConfirm() {
     confirmAction.value = null
 }
 
-// 处理编辑器输入
-function handleEditorInput(e) {
-    currentContent.value = e.target.textContent
-    highlightCode()
-}
-
 // 处理编辑器失焦，自动保存
 async function handleEditorBlur() {
     if (activeEntryId.value && !isReadOnly.value) {
         await saveCurrentEntry()
     }
-}
-
-// 高亮代码
-function highlightCode() {
-    nextTick(() => {
-        if (highlightRef.value) {
-            Prism.highlightElement(highlightRef.value)
-        }
-    })
 }
 
 // 处理按键事件
