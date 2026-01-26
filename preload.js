@@ -90,12 +90,9 @@ function applyHosts(content, callback) {
     if (platform === 'win32') {
         // Windows: 使用 type 命令
         command = `type "${tempFile}" > "%SystemRoot%\\System32\\drivers\\etc\\hosts"`;
-    } else if (platform === 'darwin') {
-        // macOS: 使用 sudo + cat
-        command = `cat "${tempFile}" > /etc/hosts`;
     } else {
-        // Linux: 使用 pkexec + cat
-        command = `pkexec sh -c 'cat "${tempFile}" > /etc/hosts'`;
+        // macOS/linux: 使用 sudo + cat
+        command = `cat "${tempFile}" > /etc/hosts`;
     }
 
     // 根据平台选择 sudo 或 pkexec
