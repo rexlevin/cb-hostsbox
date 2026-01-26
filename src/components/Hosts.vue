@@ -36,23 +36,8 @@
 
         <!-- 右侧内容区 -->
         <main class="content-area">
-            <div v-if="!isReadOnly" class="editable-area" style="margin: 0; padding: 0;">
-                <div class="line-numbers">
-                    <span v-for="n in lineCount" :key="n" class="line-number">{{ n }}</span>
-                </div>
-                <textarea
-                    ref="editorRef"
-                    v-model="currentContent"
-                    @input="handleEditorInput"
-                    @scroll="syncScroll"
-                    placeholder="# 在此编辑 hosts 配置..."
-                    class="hosts-editor"
-                    spellcheck="false"
-                    style="margin: 0;"
-                />
-            </div>
-            <div v-else class="readonly-area">
-                <pre class="language-hosts line-numbers"><code ref="highlightRef" class="language-hosts">{{ currentContent }}</code></pre>
+            <div class="editor-area">
+                <pre class="language-hosts line-numbers"><code ref="highlightRef" class="language-hosts" contenteditable="true" @input="handleEditorInput" @blur="handleEditorBlur">{{ currentContent }}</code></pre>
             </div>
         </main>
 
@@ -110,10 +95,7 @@ const {
     initApp
 } = useHostsEntries()
 
-// 计算行号
-const lineCount = computed(() => {
-    return (currentContent.value.match(/\n/g) || []).length + 1
-})
+
 
 // 对话框状态
 const addDialogVisible = ref(false)
@@ -128,13 +110,14 @@ const newEntry = ref({
 })
 
 // 编辑器引用
-const editorRef = ref(null)
 const highlightRef = ref(null)
+const isEditing = ref(false)
 
 // 初始化
 onMounted(async () => {
     await initApp()
     document.addEventListener('keyup', handleKeyPress)
+    highlightCode()
 })
 
 onBeforeUnmount(() => {
@@ -163,9 +146,9 @@ function openHostsDirectory() {
 
 // 监听当前内容变化，用于高亮显示
 watch([currentContent, activeTab], () => {
-    if (activeTab.value === 'system') {
+    nextTick(() => {
         highlightCode()
-    }
+    })
 })
 
 // 显示新增配置对话框
@@ -191,8 +174,8 @@ async function confirmAddEntry() {
         addDialogVisible.value = false
         selectEntry(entryId)
         nextTick(() => {
-            if (editorRef.value) {
-                editorRef.value.focus()
+            if (highlightRef.value) {
+                highlightRef.value.focus()
             }
         })
     }
@@ -254,15 +237,15 @@ async function handleConfirm() {
 }
 
 // 处理编辑器输入
-function handleEditorInput() {
-    // 可以在这里添加自动保存等逻辑
+function handleEditorInput(e) {
+    currentContent.value = e.target.textContent
+    highlightCode()
 }
 
-// 同步滚动（textarea 滚动时同步行号区域）
-function syncScroll(e) {
-    const lineNumbers = document.querySelector('.line-numbers')
-    if (lineNumbers) {
-        lineNumbers.scrollTop = e.target.scrollTop
+// 处理编辑器失焦，自动保存
+async function handleEditorBlur() {
+    if (activeEntryId.value && !isReadOnly.value) {
+        await saveCurrentEntry()
     }
 }
 

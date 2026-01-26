@@ -103,69 +103,40 @@
   flex: 1;
   overflow: auto;
   background: #fff;
-  min-height: 100%;
+  height: 100%;
 }
 
-/* 可编辑区域 */
-.editable-area {
-  display: flex;
-  min-height: 100%;
-  width: 100%;
+/* 编辑区域（统一样式） */
+.editor-area {
+  height: 100%;
 }
 
-/* 行号区域 */
-.line-numbers {
-  padding: 0 8px;
-  background: #fafafa;
-  border-right: 1px solid #e4e7ed;
-  color: #909399;
-  text-align: right;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  user-select: none;
-  min-width: 50px;
-  flex-shrink: 0;
-}
-
-.line-number {
-  display: block;
-  height: 22.4px;
-  line-height: 22.4px;
-}
-
-/* 编辑器 */
-.hosts-editor {
-  flex: 1;
-  border: none;
+/* 可编辑的code标签 */
+code[contenteditable="true"] {
   outline: none;
-  resize: none;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  background: transparent;
-  padding: 0 16px;
-  min-height: 100%;
-  min-width: 0;
+  display: block;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  cursor: text;
 }
 
-/* 只读区域 */
-.readonly-area {
-  min-height: 100%;
+code[contenteditable="true"]:focus {
+  outline: none;
+  background: #f5f7fa;
 }
 
 /* Prism 高亮样式 */
 pre[class*="language-"] {
   margin: 0;
-  padding: 0 8px;
+  padding: 0;
   background: transparent;
   height: auto;
-  min-height: 100%;
 }
 
 /* Prism 行号插件样式 */
 pre[class*="language-"].line-numbers {
-  padding-left: 50px;
+  padding-left: 0;
+  padding: 0 8px;
 }
 
 .line-numbers .line-numbers-rows {
