@@ -121,7 +121,6 @@
 
 .editor-area .cm-scroller {
   overflow: auto;
-  font-family: 'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono';
   font-size: 14px;
   line-height: 1.6;
 }
