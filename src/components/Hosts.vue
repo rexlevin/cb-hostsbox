@@ -271,5 +271,5 @@ function handleKeyPress(event) {
 </script>
 
 <style scoped>
-@import './Hosts.css';
+@import '../assets/Hosts.css';
 </style>
