@@ -202,6 +202,21 @@ async function createFirstBackup() {
     const hostsResult = readHosts();
     if (hostsResult.success) {
         try {
+            // 先查询是否已存在 default 条目
+            const existing = await canbox.db.find({
+                selector: {
+                    type: 'hosts_entry',
+                    name: 'default'
+                },
+                limit: 1
+            });
+
+            if (existing.docs && existing.docs.length > 0) {
+                console.log('默认 hosts 已存在于数据库中，跳过保存');
+                return;
+            }
+
+            // 不存在则创建
             const doc = {
                 type: 'hosts_entry',
                 name: 'default',
@@ -213,12 +228,7 @@ async function createFirstBackup() {
             await canbox.db.put(doc);
             console.log('默认 hosts 已保存到数据库');
         } catch (error) {
-            // 如果已存在则跳过
-            if (error.name === 'conflict' || error.status === 409) {
-                console.log('默认 hosts 已存在于数据库中，跳过保存');
-            } else {
-                console.warn('保存默认 hosts 到数据库失败:', error);
-            }
+            console.warn('保存默认 hosts 到数据库失败:', error);
         }
     }
 }
@@ -251,14 +261,31 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 获取所有配置
     getAllEntries: async () => {
         try {
+            console.log('getAllEntries 开始查询');
+
+            // 先创建索引（如果不存在）
+            try {
+                await canbox.db.createIndex({
+                    index: {
+                        fields: ['type']
+                    }
+                });
+                console.log('索引创建成功');
+            } catch (indexError) {
+                console.warn('创建索引失败（可能已存在）:', indexError.message);
+            }
+
             const result = await canbox.db.find({
                 selector: {
                     type: 'hosts_entry'
                 }
             });
+            console.log('getAllEntries 查询结果:', result);
             if (result && result.docs) {
+                console.log('getAllEntries 返回文档数量:', result.docs.length);
                 return { success: true, data: result.docs.map(doc => ({ ...doc, active: doc.active || false })) };
             }
+            console.log('getAllEntries 没有找到文档');
             return { success: true, data: [] };
         } catch (error) {
             console.error('获取所有 entry 失败:', error);
@@ -269,14 +296,18 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 创建配置
     createEntry: async (entry) => {
         try {
+            console.log('preload.js createEntry 输入:', entry);
             const doc = {
                 type: 'hosts_entry',
                 ...entry,
                 createTime: Date.now()
             };
+            console.log('准备写入数据库的文档:', doc);
             const result = await canbox.db.put(doc);
+            console.log('db.put 结果:', result);
             return { success: true, id: result.id, rev: result.rev };
         } catch (error) {
+            console.error('createEntry 错误:', error);
             return { success: false, msg: error.message };
         }
     },

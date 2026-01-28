@@ -43,7 +43,18 @@ export function useHostsEntries() {
       // 加载所有配置
       const result = await window.hostsboxDB.getAllEntries()
       if (result.success) {
-        entries.value = result.data
+        console.log('initApp 加载到的 entries:', result.data)
+
+        // 去重：只保留每个 name 的最新版本（按 createTime）
+        const uniqueEntries = {}
+        for (const entry of result.data) {
+          const key = entry.name
+          if (!uniqueEntries[key] || entry.createTime > uniqueEntries[key].createTime) {
+            uniqueEntries[key] = entry
+          }
+        }
+        entries.value = Object.values(uniqueEntries)
+        console.log('initApp 去重后的 entries:', entries.value)
       }
 
       // 获取系统 hosts
@@ -120,9 +131,9 @@ export function useHostsEntries() {
     }
 
     /**
-     * 保存原始配置
+     * 保存原始配置并生效
      */
-    async function saveDefault() {
+    async function saveDefaultAndApply() {
         let entry = defaultEntry.value
 
         // 如果 defaultEntry 不存在，创建新的
@@ -169,6 +180,54 @@ export function useHostsEntries() {
             selectSystemHosts()
         }
 
+        ElMessage.success('保存并生效成功')
+        isEditingDefault.value = false
+        isReadOnly.value = true
+        return true
+    }
+
+    /**
+     * 保存原始配置（不生效）
+     */
+    async function saveDefault() {
+        let entry = defaultEntry.value
+
+        // 如果 defaultEntry 不存在，创建新的
+        if (!entry) {
+            const result = await window.hostsboxDB.createEntry({
+                name: 'default',
+                content: currentContent.value,
+                active: false
+            })
+
+            if (!result.success) {
+                ElMessage.error('创建失败：' + result.msg)
+                return false
+            }
+
+            // 添加到 entries
+            entries.value.push({
+                name: 'default',
+                content: currentContent.value,
+                active: false,
+                _id: result.id,
+                _rev: result.rev
+            })
+        } else {
+            const result = await window.hostsboxDB.updateEntry({
+                ...entry,
+                content: currentContent.value
+            })
+
+            if (!result.success) {
+                ElMessage.error('保存失败：' + result.msg)
+                return false
+            }
+
+            entry.content = currentContent.value
+            entry._rev = result.rev
+        }
+
         ElMessage.success('保存成功')
         isEditingDefault.value = false
         isReadOnly.value = true
@@ -202,24 +261,31 @@ export function useHostsEntries() {
    * @returns {Promise<boolean>} - 是否成功
    */
   async function createEntry(name) {
+    console.log('createEntry 开始，name:', name)
     const entry = {
       name,
       content: `#--------- ${name} ---------\n# 在此编辑 hosts 配置\n`,
       active: false
     }
 
+    console.log('准备调用 createEntry:', entry)
     const result = await window.hostsboxDB.createEntry(entry)
+    console.log('createEntry 返回结果:', result)
+
     if (!result.success) {
       ElMessage.error('创建配置失败：' + result.msg)
       return null
     }
 
     // 更新本地数据
-    entries.value.push({
+    const newEntry = {
       ...entry,
       _id: result.id,
       _rev: result.rev
-    })
+    }
+    console.log('准备添加到 entries.value:', newEntry)
+    entries.value.push(newEntry)
+    console.log('添加后 entries.value.length:', entries.value.length)
 
     ElMessage.success('配置创建成功')
     return result.id
@@ -377,6 +443,7 @@ export function useHostsEntries() {
         selectDefault,
         editDefault,
         saveDefault,
+        saveDefaultAndApply,
         selectEntry,
         getCurrentEntry,
         createEntry,

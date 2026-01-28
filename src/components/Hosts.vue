@@ -13,8 +13,8 @@
                 <div class="nav-item" :class="{ active: activeTab === 'default' }" @click="handleMenuSelect('default')">
                     <el-icon><Document /></el-icon>
                     <span>默认</span>
-                    <el-button v-if="activeTab === 'default'" size="small" link @click.stop="handleEditDefaultClick">
-                        {{ isEditingDefault ? '取消编辑' : '编辑' }}
+                    <el-button v-if="activeTab === 'default'" size="small" link @click.stop="handleDefaultButtonClick">
+                        {{ isEditingDefault ? '保存生效' : '编辑' }}
                     </el-button>
                 </div>
 
@@ -110,6 +110,7 @@ const {
     selectDefault,
     editDefault,
     saveDefault,
+    saveDefaultAndApply,
     selectEntry,
     getCurrentEntry,
     clearCurrentSelection,
@@ -294,12 +295,13 @@ function handleMenuSelect(index) {
     }
 }
 
-// 编辑默认配置
-function handleEditDefaultClick() {
+// 处理默认配置按钮点击
+async function handleDefaultButtonClick() {
     if (isEditingDefault.value) {
-        // 取消编辑
-        selectDefault()
+        // 点击"保存生效"，保存并应用到系统
+        await saveDefaultAndApply()
     } else {
+        // 点击"编辑"，进入编辑模式
         editDefault()
         nextTick(() => {
             initEditorIfNeeded()
