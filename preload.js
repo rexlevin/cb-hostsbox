@@ -20,7 +20,7 @@ function getHostsPath() {
 /**
  * 获取应用数据目录（用户文档目录）
  */
-function getAppDataPath() {
+function getDocumentsPath() {
     const platform = os.platform();
     const homeDir = os.homedir();
 
@@ -124,13 +124,19 @@ function applyHosts(content, callback) {
  */
 function backupHosts() {
     const hostsPath = getHostsPath();
-    const backupPath = path.join(getAppDataPath(), 'hosts.backup');
+    const backupPath = path.join(getDocumentsPath(), 'hosts.backup');
+
+    // 检查备份文件是否已存在
+    if (fs.existsSync(backupPath)) {
+        console.log('备份文件已存在，跳过备份:', backupPath);
+        return { success: true, skipped: true };
+    }
 
     try {
         const content = fs.readFileSync(hostsPath, 'utf8');
         fs.writeFileSync(backupPath, content, 'utf8');
         console.log('Hosts 文件已备份到:', backupPath);
-        return { success: true };
+        return { success: true, skipped: false };
     } catch (error) {
         return { success: false, msg: `备份 hosts 文件失败: ${error.message}` };
     }
