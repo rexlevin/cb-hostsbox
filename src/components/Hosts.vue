@@ -13,7 +13,11 @@
                 <div class="nav-item" :class="{ active: activeTab === 'default' }" @click="handleMenuSelect('default')">
                     <el-icon><Document /></el-icon>
                     <span>默认</span>
-                    <el-button v-if="activeTab === 'default'" size="small" link @click.stop="handleDefaultButtonClick">
+                    <el-button
+                        v-if="activeTab === 'default'"
+                        type="success"
+                        size="small"
+                        @click.stop="handleDefaultButtonClick">
                         {{ isEditingDefault ? '保存生效' : '编辑' }}
                     </el-button>
                 </div>
