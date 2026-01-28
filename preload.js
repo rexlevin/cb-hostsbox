@@ -84,8 +84,12 @@ function applyHosts(content, callback) {
     let command;
     const options = {
         name: 'HostsBox',
-        icns: 'public/logo.png', // macOS 图标
     };
+
+    // icns 只在 macOS 上有效
+    if (platform === 'darwin') {
+        options.icns = 'logo.png';
+    }
 
     if (platform === 'win32') {
         // Windows: 使用 type 命令
@@ -95,10 +99,15 @@ function applyHosts(content, callback) {
         command = `cat "${tempFile}" > /etc/hosts`;
     }
 
+    console.log('执行 sudo 命令:', command);
+    console.log('平台:', platform);
+
     // 根据平台选择 sudo
     const sudo = require('sudo-prompt');
 
     sudo.exec(command, options, (error, stdout, stderr) => {
+        console.log('sudo.exec 回调执行，error:', error, 'stdout:', stdout, 'stderr:', stderr);
+
         // 清理临时文件
         try {
             fs.unlinkSync(tempFile);
@@ -107,6 +116,37 @@ function applyHosts(content, callback) {
         }
 
         if (error) {
+            // 检查 hosts 文件是否真的被更新了
+            const hostsPath = getHostsPath();
+            let actualContent;
+            try {
+                actualContent = fs.readFileSync(hostsPath, 'utf8');
+            } catch (e) {
+                console.error('读取 hosts 失败:', e);
+            }
+
+            // 检查文件是否包含我们期望的内容（使用宽松匹配）
+            // 因为可能有尾随换行等差异
+            if (actualContent) {
+                const normalizedExpected = content.trim();
+                const normalizedActual = actualContent.trim();
+
+                if (normalizedActual === normalizedExpected) {
+                    console.log('Hosts 文件已成功更新（通过验证，完全匹配）');
+                    callback({ success: true, code: 'success' });
+                    return;
+                }
+
+                // 如果实际内容包含期望的内容，也认为成功
+                if (normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual)) {
+                    console.log('Hosts 文件已成功更新（通过验证，包含匹配）');
+                    callback({ success: true, code: 'success' });
+                    return;
+                }
+
+                console.log('内容不匹配，期望长度:', normalizedExpected.length, '实际长度:', normalizedActual.length);
+            }
+
             if (error.message.includes('not') && error.message.includes('grant')) {
                 callback({ success: false, code: 'cancel', msg: '用户取消提权' });
             } else {

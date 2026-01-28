@@ -164,6 +164,11 @@ export function useHostsEntries() {
         // 应用到系统：default + 所有激活的 entry
         await applyHostsToSystem()
 
+        // 如果当前在"系统 Hosts"页面，刷新显示内容
+        if (activeTab.value === 'system') {
+            selectSystemHosts()
+        }
+
         ElMessage.success('保存成功')
         isEditingDefault.value = false
         isReadOnly.value = true
@@ -266,19 +271,23 @@ export function useHostsEntries() {
 
         if (wasActive) {
             await applyHostsToSystem()
+            // 如果当前在"系统 Hosts"页面，刷新显示内容
+            if (activeTab.value === 'system') {
+                selectSystemHosts()
+            }
         }
 
         return true
     }
 
-    /**
-     * 切换配置激活状态
-     * @param {Object} entry - 要切换的配置
-     * @param {boolean} newState - 新的激活状态
-     * @returns {Promise<boolean>} - 是否成功
-     */
-    async function toggleEntryActive(entry, newState) {
-        const result = await window.hostsboxDB.updateEntry({
+  /**
+   * 切换配置激活状态
+   * @param {Object} entry - 要切换的配置
+   * @param {boolean} newState - 新的激活状态
+   * @returns {Promise<boolean>} - 是否成功
+   */
+  async function toggleEntryActive(entry, newState) {
+    const result = await window.hostsboxDB.updateEntry({
             ...entry,
             active: newState
         })
@@ -294,6 +303,11 @@ export function useHostsEntries() {
 
         // 重新生成 hosts 并应用到系统
         await applyHostsToSystem()
+
+        // 如果当前在"系统 Hosts"页面，刷新显示内容
+        if (activeTab.value === 'system') {
+            selectSystemHosts()
+        }
 
         return true
     }
