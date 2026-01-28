@@ -286,9 +286,9 @@ export function useHostsEntries() {
       return null
     }
 
-    // 更新本地数据
+    // 更新本地数据，使用返回的完整文档（包含 type 字段）
     const newEntry = {
-      ...entry,
+      ...result.doc,
       _id: result.id,
       _rev: result.rev
     }

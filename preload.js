@@ -263,27 +263,21 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
         try {
             console.log('getAllEntries 开始查询');
 
-            // 先创建索引（如果不存在）
-            try {
-                await canbox.db.createIndex({
-                    index: {
-                        fields: ['type']
-                    }
-                });
-                console.log('索引创建成功');
-            } catch (indexError) {
-                console.warn('创建索引失败（可能已存在）:', indexError.message);
-            }
-
-            const result = await canbox.db.find({
-                selector: {
-                    type: 'hosts_entry'
-                }
+            // 使用 allDocs 获取所有文档，避免索引延迟问题
+            const result = await canbox.db.allDocs({
+                include_docs: true
             });
-            console.log('getAllEntries 查询结果:', result);
-            if (result && result.docs) {
-                console.log('getAllEntries 返回文档数量:', result.docs.length);
-                return { success: true, data: result.docs.map(doc => ({ ...doc, active: doc.active || false })) };
+
+            console.log('getAllEntries allDocs 结果:', result);
+
+            if (result && result.rows) {
+                // 过滤出 type 为 hosts_entry 的文档
+                const docs = result.rows
+                    .map(row => row.doc)
+                    .filter(doc => doc && doc.type === 'hosts_entry');
+
+                console.log('getAllEntries 过滤后文档数量:', docs.length);
+                return { success: true, data: docs.map(doc => ({ ...doc, active: doc.active || false })) };
             }
             console.log('getAllEntries 没有找到文档');
             return { success: true, data: [] };
@@ -305,7 +299,7 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
             console.log('准备写入数据库的文档:', doc);
             const result = await canbox.db.put(doc);
             console.log('db.put 结果:', result);
-            return { success: true, id: result.id, rev: result.rev };
+            return { success: true, id: result.id, rev: result.rev, doc };
         } catch (error) {
             console.error('createEntry 错误:', error);
             return { success: false, msg: error.message };
@@ -315,9 +309,12 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 更新配置
     updateEntry: async (entry) => {
         try {
+            console.log('updateEntry 输入:', entry);
             const result = await canbox.db.put(entry);
+            console.log('updateEntry 结果:', result);
             return { success: true, rev: result.rev };
         } catch (error) {
+            console.error('updateEntry 错误:', error);
             return { success: false, msg: error.message };
         }
     },
