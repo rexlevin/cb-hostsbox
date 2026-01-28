@@ -152,10 +152,35 @@ function openHostsDir() {
 }
 
 /**
- * 创建第一个备份
+ * 创建第一个备份（包括文件备份和数据库保存）
  */
-function createFirstBackup() {
+async function createFirstBackup() {
+    // 备份到文件
     backupHosts();
+
+    // 保存到数据库
+    const hostsResult = readHosts();
+    if (hostsResult.success) {
+        try {
+            const doc = {
+                type: 'hosts_entry',
+                name: 'default',
+                content: hostsResult.data,
+                active: false,
+                createTime: Date.now()
+            };
+
+            await window.canbox.db.put(doc);
+            console.log('默认 hosts 已保存到数据库');
+        } catch (error) {
+            // 如果已存在则跳过
+            if (error.name === 'conflict' || error.status === 409) {
+                console.log('默认 hosts 已存在于数据库中，跳过保存');
+            } else {
+                console.warn('保存默认 hosts 到数据库失败:', error);
+            }
+        }
+    }
 }
 
 // 初始化时创建备份

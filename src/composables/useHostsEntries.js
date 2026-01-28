@@ -14,11 +14,14 @@ export function useHostsEntries() {
   const activeEntryId = ref('')
   const currentContent = ref('')
   const isReadOnly = ref(true)
+  const isEditingDefault = ref(false) // 是否在编辑默认配置
 
   // 计算属性
   const currentTitle = computed(() => {
     if (activeTab.value === 'system') {
       return '系统 Hosts（只读）'
+    } else if (activeTab.value === 'default') {
+      return isEditingDefault.value ? '编辑默认配置' : '默认配置（只读）'
     }
     const entry = entries.value.find(e => e._id === activeEntryId.value)
     return entry ? `编辑：${entry.name}` : '请选择配置'
@@ -26,6 +29,10 @@ export function useHostsEntries() {
 
   const activeEntries = computed(() => {
     return entries.value.filter(e => e.active)
+  })
+
+  const defaultEntry = computed(() => {
+    return entries.value.find(e => e.name === 'default')
   })
 
   /**
@@ -55,13 +62,85 @@ export function useHostsEntries() {
   }
 
   /**
-   * 选择系统 hosts
+   * 选择系统 hosts（显示当前系统 hosts 文件内容）
    */
   function selectSystemHosts() {
     activeTab.value = 'system'
     activeEntryId.value = ''
-    currentContent.value = systemHosts.value
+    isEditingDefault.value = false
+
+    // 生成当前 hosts 内容：default + 所有激活的 entry
+    // 如果 default 不存在，直接使用当前系统 hosts
+    let currentHosts = ''
+    if (defaultEntry.value) {
+      currentHosts = defaultEntry.value.content
+      for (const entry of activeEntries.value) {
+        if (entry.name !== 'default') {
+          currentHosts += '\n# ' + entry.name + '\n'
+          currentHosts += entry.content + '\n'
+        }
+      }
+    } else {
+      // 如果 default 不存在，直接使用系统 hosts
+      currentHosts = systemHosts.value
+    }
+
+    currentContent.value = currentHosts
     isReadOnly.value = true
+  }
+
+  /**
+   * 选择默认配置
+   */
+  function selectDefault() {
+    activeTab.value = 'default'
+    activeEntryId.value = ''
+    isEditingDefault.value = false
+
+    const entry = defaultEntry.value
+    if (entry) {
+      currentContent.value = entry.content
+    }
+    isReadOnly.value = true
+  }
+
+  /**
+   * 编辑默认配置
+   */
+  function editDefault() {
+    isEditingDefault.value = true
+    isReadOnly.value = false
+  }
+
+  /**
+   * 保存默认配置
+   */
+  async function saveDefault() {
+    const entry = defaultEntry.value
+    if (!entry) {
+      return false
+    }
+
+    const result = await window.hostsboxDB.updateEntry({
+      ...entry,
+      content: currentContent.value
+    })
+
+    if (!result.success) {
+      ElMessage.error('保存失败：' + result.msg)
+      return false
+    }
+
+    entry.content = currentContent.value
+    entry._rev = result.rev
+
+    // 应用到系统：default + 所有激活的 entry
+    await applyHostsToSystem()
+
+    ElMessage.success('保存成功')
+    isEditingDefault.value = false
+    isReadOnly.value = true
+    return true
   }
 
   /**
@@ -193,13 +272,20 @@ export function useHostsEntries() {
    * 应用 hosts 到系统
    */
   async function applyHostsToSystem() {
-    // 生成新的 hosts 内容
-    let newHosts = '# ========== HostsBox Managed ==========\n'
-    for (const entry of activeEntries.value) {
-      newHosts += '\n# ' + entry.name + '\n'
-      newHosts += entry.content + '\n'
+    // 生成新的 hosts 内容：default + 所有激活的 entry
+    let newHosts = ''
+    const defaultEntry = defaultEntry.value
+
+    if (defaultEntry) {
+      newHosts = defaultEntry.content
     }
-    newHosts += '\n# ========== End of HostsBox ==========\n'
+
+    for (const entry of activeEntries.value) {
+      if (entry.name !== 'default') {
+        newHosts += '\n# ' + entry.name + '\n'
+        newHosts += entry.content + '\n'
+      }
+    }
 
     // 通过 hostsbox API 应用
     const result = await window.hostsbox.applyHosts(newHosts)
@@ -237,10 +323,15 @@ export function useHostsEntries() {
     isReadOnly,
     currentTitle,
     activeEntries,
+    defaultEntry,
+    isEditingDefault,
 
     // 方法
     initApp,
     selectSystemHosts,
+    selectDefault,
+    editDefault,
+    saveDefault,
     selectEntry,
     getCurrentEntry,
     createEntry,

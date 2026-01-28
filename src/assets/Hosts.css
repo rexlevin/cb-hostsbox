@@ -103,24 +103,27 @@
 /* ========== 右侧内容区 ========== */
 .content-area {
   flex: 1;
-  overflow: auto;
-  background: #fafafa;
+  overflow: hidden;
+  background: #1e1e1e;
   height: 100%;
+  padding: 0;
 }
 
 /* 编辑区域（CodeMirror） */
 .editor-area {
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 
 /* CodeMirror 容器 */
 .editor-area .cm-editor {
   height: 100%;
+  background: #1e1e1e;
 }
 
 .editor-area .cm-scroller {
   overflow: auto;
   font-size: 14px;
   line-height: 1.6;
+  font-family: 'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace !important;
 }

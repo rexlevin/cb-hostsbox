@@ -9,6 +9,15 @@
                     <span>系统 Hosts</span>
                 </div>
 
+                <!-- 默认配置 -->
+                <div v-if="defaultEntry" class="nav-item" :class="{ active: activeTab === 'default' }" @click="handleMenuSelect('default')">
+                    <el-icon><Document /></el-icon>
+                    <span>默认</span>
+                    <el-button v-if="activeTab === 'default'" size="small" link @click.stop="handleEditDefaultClick">
+                        {{ isEditingDefault ? '取消编辑' : '编辑' }}
+                    </el-button>
+                </div>
+
                 <div class="divider" />
 
                 <!-- 自定义配置标题 -->
@@ -20,7 +29,7 @@
 
             <!-- 自定义配置列表 -->
             <div class="sidebar-scroll" style="margin: 0; padding: 0;">
-                <div v-for="entry in entries" :key="entry._id" class="nav-item"
+                <div v-for="entry in entries.filter(e => e.name !== 'default')" :key="entry._id" class="nav-item"
                     :class="{ active: activeEntryId === entry._id }" @click="handleMenuSelect(entry._id)">
                     <el-icon><Document /></el-icon>
                     <span>{{ entry.name }}</span>
@@ -28,7 +37,7 @@
                         @change="(val) => handleToggleEntryActive(entry, val)" class="entry-switch" size="small" />
                 </div>
 
-                <div v-if="entries.length === 0" class="empty-state">
+                <div v-if="entries.filter(e => e.name !== 'default').length === 0" class="empty-state">
                     <span>暂无配置</span>
                 </div>
             </div>
@@ -83,11 +92,16 @@ const {
     currentContent,
     isReadOnly,
     currentTitle,
+    defaultEntry,
+    isEditingDefault,
     createEntry,
     saveCurrentEntry,
     deleteEntry,
     toggleEntryActive,
     selectSystemHosts,
+    selectDefault,
+    editDefault,
+    saveDefault,
     selectEntry,
     getCurrentEntry,
     clearCurrentSelection,
@@ -131,7 +145,6 @@ onBeforeUnmount(() => {
 
 // 监听当前内容变化，用于更新编辑器
 watch(currentContent, (newContent) => {
-    console.log('watch triggered, newContent:', newContent)
     if (editorView && !isUpdatingFromWatch) {
         isUpdatingFromWatch = true
         const transaction = editorView.state.update({
@@ -172,10 +185,9 @@ function initEditor() {
                     '.cm-content': {
                         fontFamily: "'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace"
                     }
-                })
+                }),
+                EditorState.readOnly.of(isReadOnly.value)
             ]
-
-            console.log('initEditor currentContent:', currentContent.value)
 
             editorView = new EditorView({
                 state: EditorState.create({
@@ -184,20 +196,86 @@ function initEditor() {
                 }),
                 parent: editorRef.value
             })
-
-            console.log('editorView doc:', editorView.state.doc.toString())
         }
     })
 }
 
-
+// 监听只读状态变化
+watch(isReadOnly, (newVal) => {
+    if (editorView) {
+        const readOnlyExtension = EditorState.readOnly.of(newVal)
+        // 重新创建编辑器以应用新的只读状态
+        const newExtensions = [
+            basicSetup,
+            oneDark,
+            StreamLanguage.define(properties),
+            EditorView.updateListener.of((update) => {
+                if (update.docChanged && !isUpdatingFromWatch) {
+                    currentContent.value = update.state.doc.toString()
+                }
+            }),
+            EditorView.theme({
+                '&': {
+                    height: '100%'
+                },
+                '.cm-scroller': {
+                    overflow: 'auto',
+                    fontFamily: "'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace"
+                },
+                '.cm-content': {
+                    fontFamily: "'Liberation Mono', 'DejaVu Sans Mono', 'Noto Mono', monospace"
+                }
+            }),
+            readOnlyExtension
+        ]
+        editorView.destroy()
+        editorView = new EditorView({
+            state: EditorState.create({
+                doc: currentContent.value || '',
+                extensions: newExtensions
+            }),
+            parent: editorRef.value
+        })
+    }
+})
 
 // 菜单选择处理
 function handleMenuSelect(index) {
     if (index === 'system') {
         selectSystemHosts()
+        nextTick(() => {
+            initEditorIfNeeded()
+        })
+    } else if (index === 'default') {
+        selectDefault()
+        nextTick(() => {
+            initEditorIfNeeded()
+        })
     } else {
         selectEntry(index)
+        nextTick(() => {
+            initEditorIfNeeded()
+        })
+    }
+}
+
+// 编辑默认配置
+function handleEditDefaultClick() {
+    if (isEditingDefault.value) {
+        // 取消编辑
+        selectDefault()
+    } else {
+        editDefault()
+        nextTick(() => {
+            initEditorIfNeeded()
+        })
+    }
+}
+
+// 初始化编辑器（如果需要）
+function initEditorIfNeeded() {
+    if (!editorView && editorRef.value) {
+        initEditor()
     }
 }
 
@@ -308,10 +386,17 @@ function handleKeyPress(event) {
     // Ctrl+S 保存
     if (event.ctrlKey && (event.key === 's' || event.key === 'S')) {
         event.preventDefault()
-        if (activeEntryId.value) {
+        if (activeTab.value === 'default' && isEditingDefault.value) {
+            saveDefaultEntry()
+        } else if (activeEntryId.value) {
             saveEntry()
         }
     }
+}
+
+// 保存默认配置（包装方法以匹配现有逻辑）
+async function saveDefaultEntry() {
+    await saveDefault()
 }
 </script>
 
