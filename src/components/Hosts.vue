@@ -54,9 +54,9 @@
 
         <!-- 新增配置对话框 -->
         <el-dialog v-model="addDialogVisible" title="新增 Hosts 配置" width="400px">
-            <el-form :model="newEntry" label-width="80px">
+            <el-form :model="newEntry" label-width="80px" @submit.prevent="confirmAddEntry">
                 <el-form-item label="配置名称">
-                    <el-input v-model="newEntry.name" placeholder="输入配置名称，如：开发环境" @keyup.enter="confirmAddEntry" />
+                    <el-input v-model="newEntry.name" placeholder="输入配置名称，如：开发环境" @keyup.enter.prevent="confirmAddEntry" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -86,6 +86,10 @@ import { EditorState } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { StreamLanguage } from '@codemirror/language'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
+
+// 防抖保存定时器
+let saveTimer = null
+const AUTO_SAVE_DELAY = 800 // 自动保存延迟（毫秒）
 
 // 使用 composable
 const {
@@ -142,6 +146,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('keyup', handleKeyPress)
+    if (saveTimer) {
+        clearTimeout(saveTimer)
+    }
     if (editorView) {
         editorView.destroy()
     }
@@ -176,6 +183,8 @@ function initEditor() {
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged && !isUpdatingFromWatch) {
                         currentContent.value = update.state.doc.toString()
+                        // 自动保存（防抖）
+                        triggerAutoSave()
                     }
                 }),
                 EditorView.theme({
@@ -204,6 +213,26 @@ function initEditor() {
     })
 }
 
+// 触发自动保存（防抖）
+function triggerAutoSave() {
+    // 只在编辑自定义配置时自动保存
+    if (isReadOnly.value || !activeEntryId.value) {
+        return
+    }
+
+    if (saveTimer) {
+        clearTimeout(saveTimer)
+    }
+
+    saveTimer = setTimeout(async () => {
+        const success = await saveCurrentEntry()
+        if (success) {
+            // 使用更轻量的提示方式，或者完全不提示（可选）
+            // ElMessage.success('已自动保存')
+        }
+    }, AUTO_SAVE_DELAY)
+}
+
 // 监听只读状态变化
 watch(isReadOnly, (newVal) => {
     if (editorView) {
@@ -216,6 +245,8 @@ watch(isReadOnly, (newVal) => {
             EditorView.updateListener.of((update) => {
                 if (update.docChanged && !isUpdatingFromWatch) {
                     currentContent.value = update.state.doc.toString()
+                    // 自动保存（防抖）
+                    triggerAutoSave()
                 }
             }),
             EditorView.theme({
@@ -297,10 +328,15 @@ function openHostsDirectory() {
 function showAddEntryDialog() {
     newEntry.value.name = ''
     addDialogVisible.value = true
-    nextTick(() => {
-        const input = document.querySelector('.el-dialog input')
-        if (input) input.focus()
-    })
+
+    // Dialog 可能有异步动画，需要延迟执行 focus
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.el-input__inner')
+        if (inputs.length > 0) {
+            const lastInput = inputs[inputs.length - 1]
+            lastInput.focus()
+        }
+    }, 100)
 }
 
 // 确认新增配置

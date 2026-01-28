@@ -35,31 +35,31 @@ export function useHostsEntries() {
         return entries.value.find(e => e.name === 'default')
     })
 
-    /**
-     * 初始化应用
-     */
-    async function initApp() {
-        try {
-            // 加载所有配置
-            const result = await window.hostsboxDB.getAllEntries()
-            if (result.success) {
-                entries.value = result.data
-            }
+  /**
+   * 初始化应用
+   */
+  async function initApp() {
+    try {
+      // 加载所有配置
+      const result = await window.hostsboxDB.getAllEntries()
+      if (result.success) {
+        entries.value = result.data
+      }
 
-            // 获取系统 hosts
-            const hostsResult = window.hostsbox.getHosts()
-            if (hostsResult.success) {
-                systemHosts.value = hostsResult.data
-            } else {
-                systemHosts.value = `# 获取系统 hosts 失败\n# 错误: ${hostsResult.msg}\n`
-            }
+      // 获取系统 hosts
+      const hostsResult = window.hostsbox.getHosts()
+      if (hostsResult.success) {
+        systemHosts.value = hostsResult.data
+      } else {
+        systemHosts.value = `# 获取系统 hosts 失败\n# 错误: ${hostsResult.msg}\n`
+      }
 
-            // 默认显示系统 hosts
-            selectSystemHosts()
-        } catch (error) {
-            ElMessage.error('初始化失败：' + error.message)
-        }
+      // 默认显示系统 hosts
+      selectSystemHosts()
+    } catch (error) {
+      ElMessage.error('初始化失败：' + error.message)
     }
+  }
 
     /**
      * 选择系统 hosts（显示当前系统 hosts 文件内容）
@@ -191,62 +191,62 @@ export function useHostsEntries() {
         return entries.value.find(e => e._id === activeEntryId.value)
     }
 
-    /**
-     * 创建新配置
-     * @param {string} name - 配置名称
-     * @returns {Promise<boolean>} - 是否成功
-     */
-    async function createEntry(name) {
-        const entry = {
-            name,
-            content: `# ${name}\n# 在此编辑 hosts 配置\n`,
-            active: false
-        }
-
-        console.log('创建 entry:', entry)
-        const result = await window.hostsboxDB.createEntry(entry)
-        console.log('创建结果:', result)
-
-        if (!result.success) {
-            ElMessage.error('创建配置失败：' + result.msg)
-            return null
-        }
-
-        // 更新本地数据
-        entries.value.push({
-            ...entry,
-            _id: result.id,
-            _rev: result.rev
-        })
-
-        ElMessage.success('配置创建成功')
-        return result.id
+  /**
+   * 创建新配置
+   * @param {string} name - 配置名称
+   * @returns {Promise<boolean>} - 是否成功
+   */
+  async function createEntry(name) {
+    const entry = {
+      name,
+      content: `#--------- ${name} ---------\n# 在此编辑 hosts 配置\n`,
+      active: false
     }
 
-    /**
-     * 保存当前配置内容
-     * @returns {Promise<boolean>} - 是否成功
-     */
-    async function saveCurrentEntry() {
-        const entry = getCurrentEntry()
-        if (!entry) {
-            return false
-        }
-
-        const result = await window.hostsboxDB.updateEntry({
-            ...entry,
-            content: currentContent.value
-        })
-
-        if (!result.success) {
-            ElMessage.error('保存失败：' + result.msg)
-            return false
-        }
-
-        entry.content = currentContent.value
-        ElMessage.success('保存成功')
-        return true
+    const result = await window.hostsboxDB.createEntry(entry)
+    if (!result.success) {
+      ElMessage.error('创建配置失败：' + result.msg)
+      return null
     }
+
+    // 更新本地数据
+    entries.value.push({
+      ...entry,
+      _id: result.id,
+      _rev: result.rev
+    })
+
+    ElMessage.success('配置创建成功')
+    return result.id
+  }
+
+  /**
+   * 保存当前配置内容
+   * @param {boolean} showMessage - 是否显示保存提示
+   * @returns {Promise<boolean>} - 是否成功
+   */
+  async function saveCurrentEntry(showMessage = true) {
+    const entry = getCurrentEntry()
+    if (!entry) {
+      return false
+    }
+
+    const result = await window.hostsboxDB.updateEntry({
+      ...entry,
+      content: currentContent.value
+    })
+
+    if (!result.success) {
+      if (showMessage) ElMessage.error('保存失败：' + result.msg)
+      return false
+    }
+
+    // 更新本地 entry 的 content 和 _rev
+    entry.content = currentContent.value
+    entry._rev = result.rev
+    if (showMessage) ElMessage.success('保存成功')
+    return true
+  }
 
     /**
      * 删除配置

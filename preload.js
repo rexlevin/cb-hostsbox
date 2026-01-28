@@ -235,10 +235,8 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
                 createTime: Date.now()
             };
             const result = await canbox.db.put(doc);
-            console.log('创建 entry 结果:', result);
             return { success: true, id: result.id, rev: result.rev };
         } catch (error) {
-            console.error('创建 entry 失败:', error);
             return { success: false, msg: error.message };
         }
     },
