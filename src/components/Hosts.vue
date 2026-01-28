@@ -10,7 +10,7 @@
                 </div>
 
                 <!-- 默认配置 -->
-                <div v-if="defaultEntry" class="nav-item" :class="{ active: activeTab === 'default' }" @click="handleMenuSelect('default')">
+                <div class="nav-item" :class="{ active: activeTab === 'default' }" @click="handleMenuSelect('default')">
                     <el-icon><Document /></el-icon>
                     <span>默认</span>
                     <el-button v-if="activeTab === 'default'" size="small" link @click.stop="handleEditDefaultClick">
@@ -45,6 +45,10 @@
 
         <!-- 右侧内容区 -->
         <main class="content-area">
+            <!-- 顶部工具栏 -->
+            <div v-if="activeEntryId && !isReadOnly" class="editor-toolbar">
+                <el-button type="danger" size="small" :icon="Delete" @click="confirmDeleteEntry">删除配置</el-button>
+            </div>
             <div ref="editorRef" class="editor-area"></div>
         </main>
 

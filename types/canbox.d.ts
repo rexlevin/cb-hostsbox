@@ -18,39 +18,46 @@ declare global {
              */
             db: {
                 /**
-                 * 插入数据
-                 * @param param - 插入的数据
-                 * @returns Promise<any>
+                 * 新增或更新文档
+                 * @param param - 文档对象，必须包含 `_id` 字段
+                 * @returns Promise<any> - 返回操作结果，成功时返回文档数据，失败时返回错误信息
                  */
-                put: (param: any) => Promise<any>;
+                put: (param: { _id: string; [key: string]: any }) => Promise<any>;
 
                 /**
-                 * 批量插入数据
-                 * @param docs - 批量插入的数据
-                 * @returns Promise<any>
+                 * 批量新增或更新文档
+                 * @param docs - 文档数组，每个文档必须包含 `_id` 字段
+                 * @returns Promise<Array<any>> - 返回操作结果数组，成功时返回文档数据，失败时返回错误信息
                  */
-                bulkDocs: (docs: any[]) => Promise<any>;
+                bulkDocs: (docs: Array<{ _id: string; [key: string]: any }>) => Promise<Array<any>>;
 
                 /**
-                 * 查询数据
-                 * @param param - 查询条件
-                 * @returns Promise<any>
+                 * 获取文档
+                 * @param param - 查询参数，必须包含 `_id` 字段
+                 * @returns Promise<any> - 返回查询结果，成功时返回文档数据，失败时返回错误信息
                  */
-                get: (param: any) => Promise<any>;
+                get: (param: { _id: string }) => Promise<any>;
 
                 /**
-                 * 同步查询数据
-                 * @param param - 查询条件
-                 * @returns any
+                 * 同步获取文档
+                 * @param param - 查询参数，必须包含 `_id` 字段
+                 * @returns any|null - 返回查询结果，成功时返回文档数据，失败时返回 null
                  */
-                getSync: (param: any) => any;
+                getSync: (param: { _id: string }) => any | null;
 
                 /**
-                 * 删除数据
-                 * @param param - 删除条件
-                 * @returns Promise<any>
+                 * 查询文档
+                 * @param query - 查询条件，支持 Mango 查询语法
+                 * @returns Promise<any> - 返回查询结果，成功时返回包含 docs 数组的结果对象
                  */
-                remove: (param: any) => Promise<any>;
+                find: (query: { selector: any; sort?: any; limit?: number; fields?: string[] }) => Promise<any>;
+
+                /**
+                 * 删除文档
+                 * @param param - 删除参数，必须包含 `_id` 字段
+                 * @returns Promise<any> - 返回操作结果，成功时返回删除的文档数据，失败时返回错误信息
+                 */
+                remove: (param: { _id: string }) => Promise<any>;
             };
 
             /**
@@ -66,11 +73,13 @@ declare global {
                 createWindow: (options: any, params: any) => Promise<any>;
 
                 /**
-                 * 发送通知
+                 * 发出通知
                  * @param options - 通知配置
+                 * @param options.title - 通知标题
+                 * @param options.body - 通知内容
                  * @returns Promise<void>
                  */
-                notification: (options: any) => Promise<void>;
+                notification: (options: { title: string; body: string }) => Promise<void>;
             };
 
             /**
@@ -82,14 +91,21 @@ declare global {
                  * @param options - 对话框配置
                  * @returns Promise<any>
                  */
-                openFile: (options: any) => Promise<any>;
+                showOpenDialog: (options: any) => Promise<any>;
 
                 /**
-                 * 保存文件对话框
+                 * 打开保存对话框
                  * @param options - 对话框配置
                  * @returns Promise<any>
                  */
-                saveFile: (options: any) => Promise<any>;
+                showSaveDialog: (options: any) => Promise<any>;
+
+                /**
+                 * 打开消息对话框
+                 * @param options - 对话框配置
+                 * @returns Promise<any>
+                 */
+                showMessageBox: (options: any) => Promise<any>;
             };
 
             /**
@@ -98,32 +114,42 @@ declare global {
             store: {
                 /**
                  * 获取存储的值
+                 * @param name - 存储的名称
                  * @param key - 存储的键
                  * @returns Promise<any>
                  */
-                get: (key: string) => Promise<any>;
+                get: (name: string, key: string) => Promise<any>;
 
                 /**
                  * 设置存储的值
+                 * @param name - 存储的名称
                  * @param key - 存储的键
                  * @param value - 存储的值
                  * @returns Promise<void>
                  */
-                set: (key: string, value: any) => Promise<void>;
+                set: (name: string, key: string, value: any) => Promise<void>;
 
                 /**
                  * 删除存储的值
+                 * @param name - 存储的名称
                  * @param key - 存储的键
                  * @returns Promise<void>
                  */
-                delete: (key: string) => Promise<void>;
+                delete: (name: string, key: string) => Promise<void>;
 
                 /**
                  * 清空存储
+                 * @param name - 存储的名称
                  * @returns Promise<void>
                  */
-                clear: () => Promise<void>;
+                clear: (name: string) => Promise<void>;
             };
+
+            /**
+             * 注册窗口关闭时的回调函数
+             * @param callback - 窗口关闭时执行的回调函数
+             */
+            registerCloseCallback: (callback: () => void) => void;
         };
     }
 

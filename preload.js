@@ -170,7 +170,7 @@ async function createFirstBackup() {
                 createTime: Date.now()
             };
 
-            await window.canbox.db.put(doc);
+            await canbox.db.put(doc);
             console.log('默认 hosts 已保存到数据库');
         } catch (error) {
             // 如果已存在则跳过
@@ -211,7 +211,7 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 获取所有配置
     getAllEntries: async () => {
         try {
-            const result = await window.canbox.db.get({
+            const result = await canbox.db.find({
                 selector: {
                     type: 'hosts_entry'
                 }
@@ -221,6 +221,7 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
             }
             return { success: true, data: [] };
         } catch (error) {
+            console.error('获取所有 entry 失败:', error);
             return { success: false, msg: error.message };
         }
     },
@@ -233,9 +234,11 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
                 ...entry,
                 createTime: Date.now()
             };
-            const result = await window.canbox.db.put(doc);
+            const result = await canbox.db.put(doc);
+            console.log('创建 entry 结果:', result);
             return { success: true, id: result.id, rev: result.rev };
         } catch (error) {
+            console.error('创建 entry 失败:', error);
             return { success: false, msg: error.message };
         }
     },
@@ -243,7 +246,7 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 更新配置
     updateEntry: async (entry) => {
         try {
-            const result = await window.canbox.db.put(entry);
+            const result = await canbox.db.put(entry);
             return { success: true, rev: result.rev };
         } catch (error) {
             return { success: false, msg: error.message };
@@ -253,7 +256,7 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
     // 删除配置
     deleteEntry: async (id, rev) => {
         try {
-            await window.canbox.db.remove({ _id: id, _rev: rev });
+            await canbox.db.remove({ _id: id, _rev: rev });
             return { success: true };
         } catch (error) {
             return { success: false, msg: error.message };
