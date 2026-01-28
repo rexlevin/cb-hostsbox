@@ -74,39 +74,35 @@ function readHosts() {
 }
 
 /**
- * 写入 hosts 文件（使用 sudo-prompt 提权）
+ * 写入 hosts 文件（使用 canbox.sudo.exec 提权）
  */
-function applyHosts(content, callback) {
+async function applyHosts(content) {
     const tempFile = path.join(os.tmpdir(), 'hosts-' + nanoid() + '.tmp');
     fs.writeFileSync(tempFile, content, 'utf8');
 
     const platform = os.platform();
     let command;
-    const options = {
-        name: 'HostsBox',
-    };
-
-    // icns 只在 macOS 上有效
-    if (platform === 'darwin') {
-        options.icns = 'logo.png';
-    }
 
     if (platform === 'win32') {
         // Windows: 使用 type 命令
         command = `type "${tempFile}" > "%SystemRoot%\\System32\\drivers\\etc\\hosts"`;
     } else {
-        // macOS/linux: 使用 sudo + cat
+        // macOS/linux: 使用 cat 命令
         command = `cat "${tempFile}" > /etc/hosts`;
     }
 
-    console.log('执行 sudo 命令:', command);
+    console.log('执行提权命令:', command);
     console.log('平台:', platform);
+    console.log('准备调用 canbox.sudo.exec，参数:', { command, name: '应用 hosts 配置' });
 
-    // 根据平台选择 sudo
-    const sudo = require('sudo-prompt');
+    try {
+        const result = await canbox.sudo.exec({
+            command: command,
+            name: 'Hosts Config'
+        });
 
-    sudo.exec(command, options, (error, stdout, stderr) => {
-        console.log('sudo.exec 回调执行，error:', error, 'stdout:', stdout, 'stderr:', stderr);
+        console.log('提权执行成功，stdout:', result.stdout);
+        console.log('stderr:', result.stderr);
 
         // 清理临时文件
         try {
@@ -115,48 +111,64 @@ function applyHosts(content, callback) {
             console.warn('清理临时文件失败:', e);
         }
 
-        if (error) {
-            // 检查 hosts 文件是否真的被更新了
-            const hostsPath = getHostsPath();
-            let actualContent;
-            try {
-                actualContent = fs.readFileSync(hostsPath, 'utf8');
-            } catch (e) {
-                console.error('读取 hosts 失败:', e);
-            }
-
-            // 检查文件是否包含我们期望的内容（使用宽松匹配）
-            // 因为可能有尾随换行等差异
-            if (actualContent) {
-                const normalizedExpected = content.trim();
-                const normalizedActual = actualContent.trim();
-
-                if (normalizedActual === normalizedExpected) {
-                    console.log('Hosts 文件已成功更新（通过验证，完全匹配）');
-                    callback({ success: true, code: 'success' });
-                    return;
-                }
-
-                // 如果实际内容包含期望的内容，也认为成功
-                if (normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual)) {
-                    console.log('Hosts 文件已成功更新（通过验证，包含匹配）');
-                    callback({ success: true, code: 'success' });
-                    return;
-                }
-
-                console.log('内容不匹配，期望长度:', normalizedExpected.length, '实际长度:', normalizedActual.length);
-            }
-
-            if (error.message.includes('not') && error.message.includes('grant')) {
-                callback({ success: false, code: 'cancel', msg: '用户取消提权' });
-            } else {
-                callback({ success: false, code: 'failed', msg: '写入 hosts 失败: ' + error.message });
-            }
-        } else {
-            console.log('Hosts 文件更新成功');
-            callback({ success: true, code: 'success' });
+        // 验证 hosts 文件是否真的被更新了
+        const hostsPath = getHostsPath();
+        let actualContent;
+        try {
+            actualContent = fs.readFileSync(hostsPath, 'utf8');
+        } catch (e) {
+            console.error('读取 hosts 失败:', e);
         }
-    });
+
+        if (actualContent) {
+            const normalizedExpected = content.trim();
+            const normalizedActual = actualContent.trim();
+
+            // 检查前100个字符是否匹配
+            const sampleLength = Math.min(100, normalizedExpected.length, normalizedActual.length);
+            const expectedSample = normalizedExpected.substring(0, sampleLength);
+            const actualSample = normalizedActual.substring(0, sampleLength);
+
+            if (expectedSample === actualSample) {
+                console.log('Hosts 文件已成功更新（通过验证，样本匹配）');
+                return { success: true, code: 'success' };
+            }
+
+            // 如果长度也一致，认为更新成功
+            if (normalizedExpected.length === normalizedActual.length) {
+                console.log('Hosts 文件已成功更新（通过验证，长度匹配）');
+                return { success: true, code: 'success' };
+            }
+
+            console.log('内容不匹配，期望长度:', normalizedExpected.length, '实际长度:', normalizedActual.length);
+            console.log('期望内容前100字符:', expectedSample);
+            console.log('实际内容前100字符:', actualSample);
+        }
+
+        return { success: false, code: 'failed', msg: '写入 hosts 失败：内容验证不通过' };
+
+    } catch (error) {
+        console.error('提权执行失败:', error);
+
+        // 清理临时文件
+        try {
+            fs.unlinkSync(tempFile);
+        } catch (e) {
+            console.warn('清理临时文件失败:', e);
+        }
+
+        // 检查用户是否取消
+        if (error.message && (error.message.includes('not') || error.message.includes('cancel'))) {
+            return { success: false, code: 'cancel', msg: '用户取消提权' };
+        }
+
+        // 如果错误信息包含"只读文件系统"，直接返回失败
+        if (error.message && error.message.includes('只读文件系统')) {
+            return { success: false, code: 'failed', msg: '写入 hosts 失败：flatpak 沙盒环境无法直接写入系统文件' };
+        }
+
+        return { success: false, code: 'failed', msg: '写入 hosts 失败: ' + error.message };
+    }
 }
 
 /**
@@ -240,13 +252,9 @@ contextBridge.exposeInMainWorld('hostsbox', {
     // 获取系统 hosts 内容
     getHosts: () => readHosts(),
 
-    // 应用 hosts 内容到系统（使用回调）
+    // 应用 hosts 内容到系统
     applyHosts: (content) => {
-        return new Promise((resolve) => {
-            applyHosts(content, (result) => {
-                resolve(result);
-            });
-        });
+        return applyHosts(content);
     },
 
     // 打开 hosts 所在目录

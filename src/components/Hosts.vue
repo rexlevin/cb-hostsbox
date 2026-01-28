@@ -37,7 +37,7 @@
                     :class="{ active: activeEntryId === entry._id }" @click="handleMenuSelect(entry._id)">
                     <el-icon><Document /></el-icon>
                     <span>{{ entry.name }}</span>
-                    <el-switch v-model="entry.active" @click.stop
+                    <el-switch :model-value="getEntrySwitchState(entry)" @click.stop
                         @change="(val) => handleToggleEntryActive(entry, val)" class="entry-switch" size="small" />
                 </div>
 
@@ -73,7 +73,7 @@
         <el-dialog v-model="confirmDialogVisible" :title="confirmTitle" width="400px">
             <p>{{ confirmMessage }}</p>
             <template #footer>
-                <el-button @click="confirmDialogVisible = false">取消</el-button>
+                <el-button @click="handleCancelDialog">取消</el-button>
                 <el-button type="primary" @click="handleConfirm">确定</el-button>
             </template>
         </el-dialog>
@@ -129,6 +129,9 @@ const confirmDialogVisible = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
 const confirmAction = ref(null)
+
+// 开关的临时状态，用于在确认对话框显示期间保持原始状态
+const pendingEntryToggle = ref(null)
 
 // 新增配置表单
 const newEntry = ref({
@@ -365,9 +368,26 @@ async function confirmAddEntry() {
     }
 }
 
+// 获取 entry 的开关显示状态
+function getEntrySwitchState(entry) {
+    // 如果当前有待处理的切换操作，返回临时状态
+    if (pendingEntryToggle.value && pendingEntryToggle.value.entryId === entry._id) {
+        return pendingEntryToggle.value.newState
+    }
+    // 否则返回实际状态
+    return entry.active
+}
+
 // 切换配置激活状态（带确认）
 function handleToggleEntryActive(entry, newState) {
     const actionName = newState ? '激活' : '失效'
+
+    // 记录待处理的切换操作
+    pendingEntryToggle.value = {
+        entryId: entry._id,
+        newState: newState,
+        originalState: entry.active
+    }
 
     confirmTitle.value = `确认${actionName}配置`
     confirmMessage.value = `${actionName} "${entry.name}" 将修改系统 hosts 文件${newState ? '，需要管理员权限' : ''}。是否继续？`
@@ -375,9 +395,11 @@ function handleToggleEntryActive(entry, newState) {
         const success = await toggleEntryActive(entry, newState)
         if (success) {
             ElMessage.success(`${actionName}配置成功`)
+            // 清除待处理状态
+            pendingEntryToggle.value = null
         } else {
-            // 如果失败，恢复开关状态
-            entry.active = !newState
+            // 如果失败，清除待处理状态，开关会自动恢复原状态
+            pendingEntryToggle.value = null
         }
     }
     confirmDialogVisible.value = true
@@ -416,6 +438,14 @@ async function handleConfirm() {
     if (confirmAction.value) {
         await confirmAction.value()
     }
+    confirmDialogVisible.value = false
+    confirmAction.value = null
+}
+
+// 处理取消对话框
+function handleCancelDialog() {
+    // 清除待处理的切换操作，开关会自动恢复原状态
+    pendingEntryToggle.value = null
     confirmDialogVisible.value = false
     confirmAction.value = null
 }

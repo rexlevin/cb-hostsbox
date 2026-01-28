@@ -80,23 +80,14 @@ export function useHostsEntries() {
         activeEntryId.value = ''
         isEditingDefault.value = false
 
-        // 生成当前 hosts 内容：default + 所有激活的 entry
-        // 如果 default 不存在，直接使用当前系统 hosts
-        let currentHosts = ''
-        if (defaultEntry.value) {
-            currentHosts = defaultEntry.value.content
-            for (const entry of activeEntries.value) {
-                if (entry.name !== 'default') {
-                    currentHosts += '\n# ' + entry.name + '\n'
-                    currentHosts += entry.content + '\n'
-                }
-            }
+        // 直接读取系统 hosts 文件
+        const hostsResult = window.hostsbox.getHosts()
+        if (hostsResult.success) {
+            currentContent.value = hostsResult.data
         } else {
-            // 如果 default 不存在，直接使用系统 hosts
-            currentHosts = systemHosts.value
+            currentContent.value = `# 获取系统 hosts 失败\n# 错误: ${hostsResult.msg}\n`
         }
 
-        currentContent.value = currentHosts
         isReadOnly.value = true
     }
 
@@ -135,6 +126,7 @@ export function useHostsEntries() {
      */
     async function saveDefaultAndApply() {
         let entry = defaultEntry.value
+        let originalContent = entry ? entry.content : null
 
         // 检查内容是否发生变化
         if (entry && entry.content === currentContent.value) {
@@ -159,13 +151,14 @@ export function useHostsEntries() {
             }
 
             // 添加到 entries
-            entries.value.push({
+            entry = {
                 name: 'default',
                 content: currentContent.value,
                 active: false,
                 _id: result.id,
                 _rev: result.rev
-            })
+            }
+            entries.value.push(entry)
         } else {
             const result = await window.hostsboxDB.updateEntry({
                 ...entry,
@@ -182,7 +175,27 @@ export function useHostsEntries() {
         }
 
         // 应用到系统：default + 所有激活的 entry
-        await applyHostsToSystem()
+        try {
+            await applyHostsToSystem()
+        } catch (error) {
+            ElMessage.error('生效失败：' + error.message)
+            // 回滚内容
+            if (originalContent !== null) {
+                const rollbackResult = await window.hostsboxDB.updateEntry({
+                    ...entry,
+                    content: originalContent
+                })
+                if (rollbackResult.success) {
+                    entry.content = originalContent
+                    entry._rev = rollbackResult.rev
+                }
+            } else {
+                // 如果是新建的，删除它
+                await window.hostsboxDB.deleteEntry(entry._id, entry._rev)
+                entries.value = entries.value.filter(e => e._id !== entry._id)
+            }
+            return false
+        }
 
         // 如果当前在"系统 Hosts"页面，刷新显示内容
         if (activeTab.value === 'system') {
@@ -334,21 +347,40 @@ export function useHostsEntries() {
      * @returns {Promise<boolean>} - 是否成功
      */
     async function deleteEntry(entry) {
+        const wasActive = entry.active
+        const entryId = entry._id
+        const entryRev = entry._rev
+
         const result = await window.hostsboxDB.deleteEntry(entry._id, entry._rev)
         if (!result.success) {
             ElMessage.error('删除失败：' + result.msg)
             return false
         }
 
-        // 如果配置是激活的，需要重新应用 hosts
-        const wasActive = entry.active
+        // 从本地列表中移除
         entries.value = entries.value.filter(e => e._id !== entry._id)
 
+        // 如果配置是激活的，需要重新应用 hosts
         if (wasActive) {
-            await applyHostsToSystem()
-            // 如果当前在"系统 Hosts"页面，刷新显示内容
-            if (activeTab.value === 'system') {
-                selectSystemHosts()
+            try {
+                await applyHostsToSystem()
+                // 如果当前在"系统 Hosts"页面，刷新显示内容
+                if (activeTab.value === 'system') {
+                    selectSystemHosts()
+                }
+            } catch (error) {
+                ElMessage.error('生效失败：' + error.message)
+                // 回滚删除
+                const restoreResult = await window.hostsboxDB.createEntry({
+                    ...entry,
+                    _id: entryId,
+                    _rev: entryRev
+                })
+                if (restoreResult.success) {
+                    entry._rev = restoreResult.rev
+                    entries.value.push(entry)
+                }
+                return false
             }
         }
 
@@ -377,13 +409,25 @@ export function useHostsEntries() {
         entry._rev = result.rev
 
         // 重新生成 hosts 并应用到系统
-        await applyHostsToSystem()
+        try {
+            await applyHostsToSystem()
+        } catch (error) {
+            ElMessage.error('生效失败：' + error.message)
+            // 回滚状态
+            entry.active = !newState
+            await window.hostsboxDB.updateEntry({
+                ...entry,
+                active: !newState
+            })
+            return false
+        }
 
         // 如果当前在"系统 Hosts"页面，刷新显示内容
         if (activeTab.value === 'system') {
             selectSystemHosts()
         }
 
+        ElMessage.success(newState ? '已生效' : '已失效')
         return true
     }
 

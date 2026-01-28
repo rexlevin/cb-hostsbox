@@ -46,11 +46,25 @@ declare global {
                 getSync: (param: { _id: string }) => any | null;
 
                 /**
+                 * 获取所有文档
+                 * @param options - 查询选项
+                 * @returns Promise<any> - 返回查询结果，包含 total_rows、offset、rows
+                 */
+                allDocs: (options?: { include_docs?: boolean; limit?: number; descending?: boolean; startkey?: string; endkey?: string; skip?: number }) => Promise<any>;
+
+                /**
                  * 查询文档
                  * @param query - 查询条件，支持 Mango 查询语法
                  * @returns Promise<any> - 返回查询结果，成功时返回包含 docs 数组的结果对象
                  */
                 find: (query: { selector: any; sort?: any; limit?: number; fields?: string[] }) => Promise<any>;
+
+                /**
+                 * 创建索引
+                 * @param index - 索引配置对象
+                 * @returns Promise<any> - 返回创建结果，成功时返回索引信息
+                 */
+                createIndex: (index: { index: { fields: any } }) => Promise<any>;
 
                 /**
                  * 删除文档
@@ -80,6 +94,18 @@ declare global {
                  * @returns Promise<void>
                  */
                 notification: (options: { title: string; body: string }) => Promise<void>;
+            };
+
+            /**
+             * 提权执行模块
+             */
+            sudo: {
+                /**
+                 * 执行需要提权的命令
+                 * @param options - 提权选项
+                 * @returns Promise<any> - 返回执行结果
+                 */
+                exec: (options: { command: string; name: string }) => Promise<{ stdout: string; stderr: string }>;
             };
 
             /**
