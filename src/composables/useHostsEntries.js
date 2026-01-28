@@ -394,8 +394,15 @@ export function useHostsEntries() {
    * @returns {Promise<boolean>} - 是否成功
    */
   async function toggleEntryActive(entry, newState) {
+    // 从 entries 中获取最新的 entry 对象，确保使用最新的 _rev
+    const latestEntry = entries.value.find(e => e._id === entry._id)
+    if (!latestEntry) {
+      ElMessage.error('配置不存在')
+      return false
+    }
+
     const result = await window.hostsboxDB.updateEntry({
-            ...entry,
+            ...latestEntry,
             active: newState
         })
 
@@ -405,8 +412,8 @@ export function useHostsEntries() {
         }
 
         // 更新本地数据
-        entry.active = newState
-        entry._rev = result.rev
+        latestEntry.active = newState
+        latestEntry._rev = result.rev
 
         // 重新生成 hosts 并应用到系统
         try {
@@ -414,11 +421,14 @@ export function useHostsEntries() {
         } catch (error) {
             ElMessage.error('生效失败：' + error.message)
             // 回滚状态
-            entry.active = !newState
-            await window.hostsboxDB.updateEntry({
-                ...entry,
+            latestEntry.active = !newState
+            const rollbackResult = await window.hostsboxDB.updateEntry({
+                ...latestEntry,
                 active: !newState
             })
+            if (rollbackResult.success) {
+                latestEntry._rev = rollbackResult.rev
+            }
             return false
         }
 
