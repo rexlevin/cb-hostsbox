@@ -136,6 +136,15 @@ export function useHostsEntries() {
     async function saveDefaultAndApply() {
         let entry = defaultEntry.value
 
+        // 检查内容是否发生变化
+        if (entry && entry.content === currentContent.value) {
+            console.log('default 配置内容未变化，跳过保存')
+            isEditingDefault.value = false
+            isReadOnly.value = true
+            ElMessage.info('内容未变化')
+            return true
+        }
+
         // 如果 defaultEntry 不存在，创建新的
         if (!entry) {
             const result = await window.hostsboxDB.createEntry({
