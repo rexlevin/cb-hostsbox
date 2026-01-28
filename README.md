@@ -71,7 +71,7 @@ npm run build
 - **UI组件**: Element Plus
 - **代码高亮**: Prism.js
 - **图标**: @element-plus/icons-vue
-- **提权**: sudo-prompt（Windows: UAC, Linux: pkexec, macOS: sudo）
+- **提权**: sudo-prompt（Windows: UAC, Linux: sudo, macOS: sudo）
 - **存储**: Canbox PouchDB (canbox.db)
 
 ## 项目结构
@@ -164,8 +164,7 @@ cb-hostsbox/
 ### 权限处理机制
 
 - **Windows**: `sudo-prompt` 通过 UAC 提示用户确认
-- **Linux**: `sudo-prompt` 使用 pkexec (PolicyKit) 提示输入密码
-- **macOS**: `sudo-prompt` 使用 sudo 提示输入密码
+- **macOS/Linux**: `sudo-prompt` 使用 sudo 提示输入密码
 
 ## 许可证
 

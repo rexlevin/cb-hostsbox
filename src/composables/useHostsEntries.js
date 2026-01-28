@@ -316,6 +316,7 @@ export function useHostsEntries() {
                 newHosts += entry.content + '\n'
             }
         }
+        console.info('newHosts: %s', newHosts);
 
         // 通过 hostsbox API 应用
         const result = await window.hostsbox.applyHosts(newHosts)

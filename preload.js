@@ -95,7 +95,7 @@ function applyHosts(content, callback) {
         command = `cat "${tempFile}" > /etc/hosts`;
     }
 
-    // 根据平台选择 sudo 或 pkexec
+    // 根据平台选择 sudo
     const sudo = require('sudo-prompt');
 
     sudo.exec(command, options, (error, stdout, stderr) => {
