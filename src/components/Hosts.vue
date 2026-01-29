@@ -175,10 +175,18 @@ const zoomLevel = ref(1)
 const MIN_ZOOM = 0.8
 const MAX_ZOOM = 1.5
 const ZOOM_STEP = 0.1
+const ZOOM_STORE_KEY = 'hostsbox-zoom-level'
 
 // 初始化
 onMounted(async () => {
     await initApp()
+
+    // 恢复保存的缩放级别（使用 hostsbox API）
+    const savedZoom = window.hostsbox.getZoomLevel()
+    if (savedZoom !== null && savedZoom !== undefined) {
+        zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, savedZoom))
+    }
+
     document.addEventListener('keyup', handleKeyPress)
     document.addEventListener('wheel', handleWheel, { passive: false })
     nextTick(() => {
@@ -545,6 +553,9 @@ function handleWheel(event) {
             // 向下滚动，缩小
             zoomLevel.value = Math.max(zoomLevel.value - ZOOM_STEP, MIN_ZOOM)
         }
+
+        // 保存缩放级别（使用 hostsbox API）
+        window.hostsbox.saveZoomLevel(zoomLevel.value)
     }
 }
 </script>

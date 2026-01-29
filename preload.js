@@ -248,22 +248,6 @@ async function createFirstBackup() {
 // 初始化时创建备份
 createFirstBackup();
 
-contextBridge.exposeInMainWorld('hostsbox', {
-    // 获取系统 hosts 内容
-    getHosts: () => readHosts(),
-
-    // 应用 hosts 内容到系统
-    applyHosts: (content) => {
-        return applyHosts(content);
-    },
-
-    // 打开 hosts 所在目录
-    openHostsDir: () => openHostsDir(),
-
-    // 备份 hosts 文件
-    backupHosts: () => backupHosts()
-});
-
 // 数据库操作 API
 contextBridge.exposeInMainWorld('hostsboxDB', {
     // 获取所有配置
@@ -334,6 +318,43 @@ contextBridge.exposeInMainWorld('hostsboxDB', {
             return { success: true };
         } catch (error) {
             return { success: false, msg: error.message };
+        }
+    }
+});
+
+// hostsbox API
+contextBridge.exposeInMainWorld('hostsbox', {
+    // 获取系统 hosts 内容
+    getHosts: () => readHosts(),
+
+    // 应用 hosts 内容到系统
+    applyHosts: (content) => {
+        return applyHosts(content);
+    },
+
+    // 打开 hosts 所在目录
+    openHostsDir: () => openHostsDir(),
+
+    // 备份 hosts 文件
+    backupHosts: () => backupHosts(),
+
+    // 获取缩放级别
+    getZoomLevel: () => {
+        try {
+            const level = localStorage.getItem('hostsbox-zoom-level');
+            return level ? parseFloat(level) : 1;
+        } catch (error) {
+            console.error('获取缩放级别失败:', error);
+            return 1;
+        }
+    },
+
+    // 保存缩放级别
+    saveZoomLevel: (level) => {
+        try {
+            localStorage.setItem('hostsbox-zoom-level', level.toString());
+        } catch (error) {
+            console.error('保存缩放级别失败:', error);
         }
     }
 });
