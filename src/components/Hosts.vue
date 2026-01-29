@@ -1,5 +1,5 @@
 <template>
-    <div class="main-container">
+    <div class="main-container" :style="{ '--zoom-level': zoomLevel }">
         <!-- 左侧边栏 -->
         <aside class="sidebar">
             <div class="sidebar-fixed">
@@ -54,9 +54,15 @@
             <!-- 批量操作栏 -->
             <div v-if="hasSelection" class="batch-actions">
                 <span class="selected-count">已选中 {{ selectedCount }} 项</span>
-                <el-button type="danger" size="small" @click="handleBatchDelete">删除全部</el-button>
-                <el-button type="success" size="small" @click="handleBatchActivate">全部生效</el-button>
-                <el-button type="warning" size="small" @click="handleBatchDeactivate">全部失效</el-button>
+                <el-button type="danger" size="small" @click="handleBatchDelete" title="删除全部">
+                    <el-icon><Delete /></el-icon>
+                </el-button>
+                <el-button type="success" size="small" @click="handleBatchActivate" title="全部生效">
+                    <el-icon><Select /></el-icon>
+                </el-button>
+                <el-button type="warning" size="small" @click="handleBatchDeactivate" title="全部失效">
+                    <el-icon><Close /></el-icon>
+                </el-button>
             </div>
         </aside>
 
@@ -96,7 +102,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Check, Delete, Monitor, Document } from '@element-plus/icons-vue'
+import { Plus, Check, Delete, Monitor, Document, Select, Close, CircleCheck } from '@element-plus/icons-vue'
 import { useHostsEntries } from '../composables/useHostsEntries.js'
 import { EditorView, basicSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
@@ -164,10 +170,17 @@ const editorRef = ref(null)
 let editorView = null
 let isUpdatingFromWatch = false
 
+// 缩放功能
+const zoomLevel = ref(1)
+const MIN_ZOOM = 0.8
+const MAX_ZOOM = 1.5
+const ZOOM_STEP = 0.1
+
 // 初始化
 onMounted(async () => {
     await initApp()
     document.addEventListener('keyup', handleKeyPress)
+    document.addEventListener('wheel', handleWheel, { passive: false })
     nextTick(() => {
         initEditor()
     })
@@ -175,6 +188,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('keyup', handleKeyPress)
+    document.removeEventListener('wheel', handleWheel)
     if (saveTimer) {
         clearTimeout(saveTimer)
     }
@@ -516,6 +530,22 @@ function handleKeyPress(event) {
 // 保存默认配置（包装方法以匹配现有逻辑）
 async function saveDefaultEntry() {
     await saveDefault()
+}
+
+// 处理鼠标滚轮缩放
+function handleWheel(event) {
+    // 只有在按住 Ctrl 键时才处理缩放
+    if (event.ctrlKey) {
+        event.preventDefault()
+
+        if (event.deltaY < 0) {
+            // 向上滚动，放大
+            zoomLevel.value = Math.min(zoomLevel.value + ZOOM_STEP, MAX_ZOOM)
+        } else {
+            // 向下滚动，缩小
+            zoomLevel.value = Math.max(zoomLevel.value - ZOOM_STEP, MIN_ZOOM)
+        }
+    }
 }
 </script>
 
