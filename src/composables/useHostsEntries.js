@@ -15,6 +15,7 @@ export function useHostsEntries() {
     const currentContent = ref('')
     const isReadOnly = ref(true)
     const isEditingDefault = ref(false) // 是否在编辑默认配置
+    const selectedEntryIds = ref(new Set()) // 选中的 entry ID 集合
 
     // 计算属性
     const currentTitle = computed(() => {
@@ -33,6 +34,21 @@ export function useHostsEntries() {
 
     const defaultEntry = computed(() => {
         return entries.value.find(e => e.name === 'default')
+    })
+
+    // 选中的 entry 数量
+    const selectedCount = computed(() => {
+        return selectedEntryIds.value.size
+    })
+
+    // 选中的 entry 对象数组
+    const selectedEntries = computed(() => {
+        return entries.value.filter(e => selectedEntryIds.value.has(e._id))
+    })
+
+    // 是否有选中的 entry
+    const hasSelection = computed(() => {
+        return selectedEntryIds.value.size > 0
     })
 
   /**
@@ -286,7 +302,7 @@ export function useHostsEntries() {
     console.log('createEntry 开始，name:', name)
     const entry = {
       name,
-      content: `#--------- ${name} ---------\n# 在此编辑 hosts 配置\n`,
+      content: `# 在此编辑 hosts 配置\n`,
       active: false
     }
 
@@ -455,7 +471,7 @@ export function useHostsEntries() {
 
         for (const entry of activeEntries.value) {
             if (entry.name !== 'default') {
-                newHosts += '\n# ' + entry.name + '\n'
+                newHosts += '\n#--------- ' + entry.name + ' ---------\n'
                 newHosts += entry.content + '\n'
             }
         }
@@ -487,6 +503,239 @@ export function useHostsEntries() {
         isReadOnly.value = true
     }
 
+    /**
+     * 切换 entry 的选中状态
+     * @param {string} entryId - entry ID
+     * @param {boolean} selected - 是否选中
+     */
+    function toggleEntrySelection(entryId, selected) {
+        if (selected) {
+            selectedEntryIds.value.add(entryId)
+        } else {
+            selectedEntryIds.value.delete(entryId)
+        }
+    }
+
+    /**
+     * 切换所有 entry 的选中状态
+     * @param {boolean} selected - 是否选中
+     */
+    function toggleAllEntrySelection(selected) {
+        if (selected) {
+            // 选中所有自定义配置
+            entries.value
+                .filter(e => e.name !== 'default')
+                .forEach(e => selectedEntryIds.value.add(e._id))
+        } else {
+            selectedEntryIds.value.clear()
+        }
+    }
+
+    /**
+     * 全部删除选中的 entry
+     * @returns {Promise<boolean>} - 是否成功
+     */
+    async function deleteSelectedEntries() {
+        const entriesToDelete = selectedEntries.value
+        if (entriesToDelete.length === 0) {
+            return true
+        }
+
+        // 检查是否有激活的 entry
+        const hasActiveEntries = entriesToDelete.some(e => e.active)
+        const message = hasActiveEntries
+            ? `即将删除 ${entriesToDelete.length} 个配置，其中包括 ${entriesToDelete.filter(e => e.active).length} 个已激活的配置。删除后这些配置将失效，是否继续？`
+            : `确认删除 ${entriesToDelete.length} 个配置？`
+
+        // 使用 confirm 对话框
+        if (!window.confirm(message)) {
+            return false
+        }
+
+        // 记录被激活的 entry，用于失败时回滚
+        const activatedEntryIds = entriesToDelete.filter(e => e.active).map(e => ({ id: e._id, rev: e._rev }))
+
+        try {
+            // 删除所有选中的 entry
+            for (const entry of entriesToDelete) {
+                const result = await window.hostsboxDB.deleteEntry(entry._id, entry._rev)
+                if (!result.success) {
+                    throw new Error(`删除 "${entry.name}" 失败：${result.msg}`)
+                }
+            }
+
+            // 从本地列表中移除
+            entries.value = entries.value.filter(e => !selectedEntryIds.value.has(e._id))
+
+            // 如果删除了激活的 entry，需要重新应用 hosts
+            if (hasActiveEntries) {
+                try {
+                    await applyHostsToSystem()
+                    // 如果当前在"系统 Hosts"页面，刷新显示内容
+                    if (activeTab.value === 'system') {
+                        selectSystemHosts()
+                    }
+                } catch (error) {
+                    ElMessage.error('应用 hosts 失败：' + error.message)
+                    // 回滚删除（简化处理，只提示错误）
+                    return false
+                }
+            }
+
+            // 清空选中
+            selectedEntryIds.value.clear()
+
+            ElMessage.success(`成功删除 ${entriesToDelete.length} 个配置`)
+            return true
+        } catch (error) {
+            ElMessage.error('删除失败：' + error.message)
+            return false
+        }
+    }
+
+    /**
+     * 全部生效选中的 entry
+     * @returns {Promise<boolean>} - 是否成功
+     */
+    async function activateSelectedEntries() {
+        const entriesToActivate = selectedEntries.value.filter(e => !e.active)
+        if (entriesToActivate.length === 0) {
+            ElMessage.info('选中的配置都已处于激活状态')
+            return true
+        }
+
+        try {
+            // 激活所有选中的未激活 entry
+            for (const entry of entriesToActivate) {
+                // 从 entries 中获取最新的 entry 对象
+                const latestEntry = entries.value.find(e => e._id === entry._id)
+                if (!latestEntry) continue
+
+                const result = await window.hostsboxDB.updateEntry({
+                    ...latestEntry,
+                    active: true
+                })
+
+                if (!result.success) {
+                    throw new Error(`激活 "${entry.name}" 失败：${result.msg}`)
+                }
+
+                latestEntry.active = true
+                latestEntry._rev = result.rev
+            }
+
+            // 重新生成 hosts 并应用到系统
+            try {
+                await applyHostsToSystem()
+            } catch (error) {
+                ElMessage.error('应用 hosts 失败：' + error.message)
+                // 回滚状态
+                for (const entry of entriesToActivate) {
+                    const latestEntry = entries.value.find(e => e._id === entry._id)
+                    if (!latestEntry) continue
+                    await window.hostsboxDB.updateEntry({
+                        ...latestEntry,
+                        active: false
+                    })
+                    latestEntry.active = false
+                }
+                return false
+            }
+
+            // 如果当前在"系统 Hosts"页面，刷新显示内容
+            if (activeTab.value === 'system') {
+                selectSystemHosts()
+            }
+
+            ElMessage.success(`成功激活 ${entriesToActivate.length} 个配置`)
+            return true
+        } catch (error) {
+            ElMessage.error('激活失败：' + error.message)
+            return false
+        }
+    }
+
+    /**
+     * 全部失效选中的 entry
+     * @returns {Promise<boolean>} - 是否成功
+     */
+    async function deactivateSelectedEntries() {
+        const entriesToDeactivate = selectedEntries.value.filter(e => e.active)
+        if (entriesToDeactivate.length === 0) {
+            ElMessage.info('选中的配置都未激活')
+            return true
+        }
+
+        try {
+            // 失效所有选中的已激活 entry
+            for (const entry of entriesToDeactivate) {
+                // 从 entries 中获取最新的 entry 对象
+                const latestEntry = entries.value.find(e => e._id === entry._id)
+                if (!latestEntry) continue
+
+                const result = await window.hostsboxDB.updateEntry({
+                    ...latestEntry,
+                    active: false
+                })
+
+                if (!result.success) {
+                    throw new Error(`失效 "${entry.name}" 失败：${result.msg}`)
+                }
+
+                latestEntry.active = false
+                latestEntry._rev = result.rev
+            }
+
+            // 重新生成 hosts 并应用到系统
+            try {
+                await applyHostsToSystem()
+            } catch (error) {
+                ElMessage.error('应用 hosts 失败：' + error.message)
+                // 回滚状态
+                for (const entry of entriesToDeactivate) {
+                    const latestEntry = entries.value.find(e => e._id === entry._id)
+                    if (!latestEntry) continue
+                    await window.hostsboxDB.updateEntry({
+                        ...latestEntry,
+                        active: true
+                    })
+                    latestEntry.active = true
+                }
+                return false
+            }
+
+            // 如果当前在"系统 Hosts"页面，刷新显示内容
+            if (activeTab.value === 'system') {
+                selectSystemHosts()
+            }
+
+            ElMessage.success(`成功失效 ${entriesToDeactivate.length} 个配置`)
+            return true
+        } catch (error) {
+            ElMessage.error('失效失败：' + error.message)
+            return false
+        }
+    }
+
+    /**
+     * 清空当前选中状态（自定义配置列表）
+     */
+    function openHostsDirectory() {
+        const result = window.hostsbox.openHostsDir()
+        if (!result.success) {
+            ElMessage.error('打开目录失败：' + result.msg)
+        }
+    }
+
+    /**
+     * 清空当前选中状态
+     */
+    function clearCurrentSelection() {
+        activeEntryId.value = ''
+        currentContent.value = ''
+        isReadOnly.value = true
+    }
+
     return {
         // 状态
         entries,
@@ -499,6 +748,9 @@ export function useHostsEntries() {
         activeEntries,
         defaultEntry,
         isEditingDefault,
+        selectedEntryIds,
+        selectedCount,
+        hasSelection,
 
         // 方法
         initApp,
@@ -515,6 +767,11 @@ export function useHostsEntries() {
         toggleEntryActive,
         applyHostsToSystem,
         openHostsDirectory,
-        clearCurrentSelection
+        clearCurrentSelection,
+        toggleEntrySelection,
+        toggleAllEntrySelection,
+        deleteSelectedEntries,
+        activateSelectedEntries,
+        deactivateSelectedEntries
     }
 }

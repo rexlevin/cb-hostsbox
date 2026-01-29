@@ -35,6 +35,11 @@
             <div class="sidebar-scroll" style="margin: 0; padding: 0;">
                 <div v-for="entry in entries.filter(e => e.name !== 'default')" :key="entry._id" class="nav-item"
                     :class="{ active: activeEntryId === entry._id }" @click="handleMenuSelect(entry._id)">
+                    <el-checkbox
+                        :model-value="selectedEntryIds.has(entry._id)"
+                        @click.stop
+                        @change="(val) => toggleEntrySelection(entry._id, val)"
+                        class="entry-checkbox" />
                     <el-icon><Document /></el-icon>
                     <span>{{ entry.name }}</span>
                     <el-switch :model-value="getEntrySwitchState(entry)" @click.stop
@@ -44,6 +49,14 @@
                 <div v-if="entries.filter(e => e.name !== 'default').length === 0" class="empty-state">
                     <span>暂无配置</span>
                 </div>
+            </div>
+
+            <!-- 批量操作栏 -->
+            <div v-if="hasSelection" class="batch-actions">
+                <span class="selected-count">已选中 {{ selectedCount }} 项</span>
+                <el-button type="danger" size="small" @click="handleBatchDelete">删除全部</el-button>
+                <el-button type="success" size="small" @click="handleBatchActivate">全部生效</el-button>
+                <el-button type="warning" size="small" @click="handleBatchDeactivate">全部失效</el-button>
             </div>
         </aside>
 
@@ -106,6 +119,9 @@ const {
     currentTitle,
     defaultEntry,
     isEditingDefault,
+    selectedEntryIds,
+    selectedCount,
+    hasSelection,
     createEntry,
     saveCurrentEntry,
     deleteEntry,
@@ -118,6 +134,11 @@ const {
     selectEntry,
     getCurrentEntry,
     clearCurrentSelection,
+    toggleEntrySelection,
+    toggleAllEntrySelection,
+    deleteSelectedEntries,
+    activateSelectedEntries,
+    deactivateSelectedEntries,
     initApp
 } = useHostsEntries()
 
@@ -448,6 +469,28 @@ function handleCancelDialog() {
     pendingEntryToggle.value = null
     confirmDialogVisible.value = false
     confirmAction.value = null
+}
+
+// 批量删除选中的 entry
+async function handleBatchDelete() {
+    const success = await deleteSelectedEntries()
+    if (success) {
+        // 清空当前选中的 entry（如果它被删除了）
+        const currentEntry = getCurrentEntry()
+        if (currentEntry && selectedEntryIds.value.has(currentEntry._id)) {
+            clearCurrentSelection()
+        }
+    }
+}
+
+// 批量生效选中的 entry
+async function handleBatchActivate() {
+    await activateSelectedEntries()
+}
+
+// 批量失效选中的 entry
+async function handleBatchDeactivate() {
+    await deactivateSelectedEntries()
 }
 
 // 处理编辑器失焦，自动保存
