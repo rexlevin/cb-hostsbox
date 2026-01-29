@@ -605,9 +605,50 @@ export function useHostsEntries() {
         }
 
         try {
-            // 激活所有选中的未激活 entry
+            // 先保存原始状态用于回滚
+            const originalStates = new Map()
             for (const entry of entriesToActivate) {
-                // 从 entries 中获取最新的 entry 对象
+                originalStates.set(entry._id, entry.active)
+            }
+
+            // 先在内存中更新状态，用于生成 hosts
+            for (const entry of entriesToActivate) {
+                const latestEntry = entries.value.find(e => e._id === entry._id)
+                if (!latestEntry) continue
+                latestEntry.active = true
+            }
+
+            // 重新生成 hosts 并应用到系统
+            try {
+                await applyHostsToSystem()
+            } catch (error) {
+                console.info('[useHostsEntries.js] 批量生效 error: ', error);
+                // 判断是否是用户取消操作
+                if (error.message && error.message.includes('cancel')) {
+                    ElMessage.info('用户取消授权，终止 hosts 变更')
+                    // 用户取消时，只回滚 UI 状态，不更新数据库
+                    for (const entry of entriesToActivate) {
+                        const latestEntry = entries.value.find(e => e._id === entry._id)
+                        if (!latestEntry) continue
+                        const originalState = originalStates.get(entry._id)
+                        latestEntry.active = originalState
+                    }
+                    return false
+                } else {
+                    ElMessage.error('应用 hosts 失败：' + error.message)
+                    // 其他错误时，回滚 UI 状态，不更新数据库（因为还没更新过）
+                    for (const entry of entriesToActivate) {
+                        const latestEntry = entries.value.find(e => e._id === entry._id)
+                        if (!latestEntry) continue
+                        const originalState = originalStates.get(entry._id)
+                        latestEntry.active = originalState
+                    }
+                    return false
+                }
+            }
+
+            // 应用成功后，才更新数据库状态
+            for (const entry of entriesToActivate) {
                 const latestEntry = entries.value.find(e => e._id === entry._id)
                 if (!latestEntry) continue
 
@@ -620,26 +661,7 @@ export function useHostsEntries() {
                     throw new Error(`激活 "${entry.name}" 失败：${result.msg}`)
                 }
 
-                latestEntry.active = true
                 latestEntry._rev = result.rev
-            }
-
-            // 重新生成 hosts 并应用到系统
-            try {
-                await applyHostsToSystem()
-            } catch (error) {
-                ElMessage.error('应用 hosts 失败：' + error.message)
-                // 回滚状态
-                for (const entry of entriesToActivate) {
-                    const latestEntry = entries.value.find(e => e._id === entry._id)
-                    if (!latestEntry) continue
-                    await window.hostsboxDB.updateEntry({
-                        ...latestEntry,
-                        active: false
-                    })
-                    latestEntry.active = false
-                }
-                return false
             }
 
             // 如果当前在"系统 Hosts"页面，刷新显示内容
@@ -667,9 +689,50 @@ export function useHostsEntries() {
         }
 
         try {
-            // 失效所有选中的已激活 entry
+            // 先保存原始状态用于回滚
+            const originalStates = new Map()
             for (const entry of entriesToDeactivate) {
-                // 从 entries 中获取最新的 entry 对象
+                originalStates.set(entry._id, entry.active)
+            }
+
+            // 先在内存中更新状态，用于生成 hosts
+            for (const entry of entriesToDeactivate) {
+                const latestEntry = entries.value.find(e => e._id === entry._id)
+                if (!latestEntry) continue
+                latestEntry.active = false
+            }
+
+            // 重新生成 hosts 并应用到系统
+            try {
+                await applyHostsToSystem()
+            } catch (error) {
+                console.info('[useHostsEntries.js] 批量失效 error: ', error);
+                // 判断是否是用户取消操作
+                if (error.message && error.message.includes('cancel')) {
+                    ElMessage.info('用户取消授权，终止 hosts 变更')
+                    // 用户取消时，只回滚 UI 状态，不更新数据库
+                    for (const entry of entriesToDeactivate) {
+                        const latestEntry = entries.value.find(e => e._id === entry._id)
+                        if (!latestEntry) continue
+                        const originalState = originalStates.get(entry._id)
+                        latestEntry.active = originalState
+                    }
+                    return false
+                } else {
+                    ElMessage.error('应用 hosts 失败：' + error.message)
+                    // 其他错误时，回滚 UI 状态，不更新数据库（因为还没更新过）
+                    for (const entry of entriesToDeactivate) {
+                        const latestEntry = entries.value.find(e => e._id === entry._id)
+                        if (!latestEntry) continue
+                        const originalState = originalStates.get(entry._id)
+                        latestEntry.active = originalState
+                    }
+                    return false
+                }
+            }
+
+            // 应用成功后，才更新数据库状态
+            for (const entry of entriesToDeactivate) {
                 const latestEntry = entries.value.find(e => e._id === entry._id)
                 if (!latestEntry) continue
 
@@ -682,26 +745,7 @@ export function useHostsEntries() {
                     throw new Error(`失效 "${entry.name}" 失败：${result.msg}`)
                 }
 
-                latestEntry.active = false
                 latestEntry._rev = result.rev
-            }
-
-            // 重新生成 hosts 并应用到系统
-            try {
-                await applyHostsToSystem()
-            } catch (error) {
-                ElMessage.error('应用 hosts 失败：' + error.message)
-                // 回滚状态
-                for (const entry of entriesToDeactivate) {
-                    const latestEntry = entries.value.find(e => e._id === entry._id)
-                    if (!latestEntry) continue
-                    await window.hostsboxDB.updateEntry({
-                        ...latestEntry,
-                        active: true
-                    })
-                    latestEntry.active = true
-                }
-                return false
             }
 
             // 如果当前在"系统 Hosts"页面，刷新显示内容

@@ -148,7 +148,9 @@ async function applyHosts(content) {
         return { success: false, code: 'failed', msg: '写入 hosts 失败：内容验证不通过' };
 
     } catch (error) {
-        console.error('提权执行失败:', error);
+        console.error('[preload.js] 提权执行失败: %o', error);
+        console.dir(error);
+        // 多次排查，发现这里的 error 是一个 string，气死了～
 
         // 清理临时文件
         try {
@@ -158,12 +160,13 @@ async function applyHosts(content) {
         }
 
         // 检查用户是否取消
-        if (error.message && (error.message.includes('not') || error.message.includes('cancel'))) {
-            return { success: false, code: 'cancel', msg: '用户取消提权' };
+        if (error && error.includes('User did not grant permission')) {
+            console.log('用户取消提权');
+            return { success: false, code: 'cancel', msg: '用户取消提权 cancel' };
         }
 
         // 如果错误信息包含"只读文件系统"，直接返回失败
-        if (error.message && error.message.includes('只读文件系统')) {
+        if (error && error.includes('只读文件系统')) {
             return { success: false, code: 'failed', msg: '写入 hosts 失败：flatpak 沙盒环境无法直接写入系统文件' };
         }
 
