@@ -497,22 +497,34 @@ function handleCancelDialog() {
 async function handleBatchDelete() {
     const success = await deleteSelectedEntries()
     if (success) {
-        // 清空当前选中的 entry（如果它被删除了）
+        // deleteSelectedEntries 已经清空了 selectedEntryIds，这里只需要处理当前编辑的 entry
         const currentEntry = getCurrentEntry()
-        if (currentEntry && selectedEntryIds.value.has(currentEntry._id)) {
-            clearCurrentSelection()
+        if (currentEntry) {
+            // 检查当前 entry 是否还存在（可能被删除了）
+            const entryExists = entries.value.find(e => e._id === currentEntry._id)
+            if (!entryExists) {
+                clearCurrentSelection()
+            }
         }
     }
 }
 
 // 批量生效选中的 entry
 async function handleBatchActivate() {
-    await activateSelectedEntries()
+    const success = await activateSelectedEntries()
+    if (success) {
+        // 清空所有选中状态
+        selectedEntryIds.value.clear()
+    }
 }
 
 // 批量失效选中的 entry
 async function handleBatchDeactivate() {
-    await deactivateSelectedEntries()
+    const success = await deactivateSelectedEntries()
+    if (success) {
+        // 清空所有选中状态
+        selectedEntryIds.value.clear()
+    }
 }
 
 // 处理编辑器失焦，自动保存
