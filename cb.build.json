@@ -1,11 +1,12 @@
 {
     "files": [
-        "dist/**/*",
+        "build/**/*",
         "preload.js",
         "public/**/*",
         "help.html",
         "app.json",
-        "README.md"
+        "README.md",
+        "HISTORY.md"
     ],
-    "outputDir": "./dist-app"
+    "outputDir": "./dist"
 }

@@ -1,11 +1,11 @@
 {
     "name": "HostsBox",
-    "id": "com.github.lizl6.hostsbox",
+    "id": "com.github.rexlevin.cb-hostsbox",
     "description": "基于 Canbox 的 hosts 管理工具",
-    "author": "lizl6",
-    "repo": "https://github.com/lizl6/cb-hostsbox",
-    "homepage": "https://github.com/lizl6/cb-hostsbox",
-    "main": "index.html",
+    "author": "rexlevin",
+    "repo": "https://github.com/rexlevin/cb-hostsbox",
+    "homepage": "https://github.com/rexlevin/cb-hostsbox",
+    "main": "build/index.html",
     "logo": "public/logo.png",
     "version": "1.0.0",
     "window": {
