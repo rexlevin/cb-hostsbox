@@ -3,6 +3,7 @@
         "dist/**/*",
         "preload.js",
         "public/**/*",
+        "help.html",
         "app.json",
         "README.md"
     ],

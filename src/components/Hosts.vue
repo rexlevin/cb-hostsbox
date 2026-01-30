@@ -7,6 +7,13 @@
                 <div class="nav-item" :class="{ active: activeTab === 'system' }" @click="handleMenuSelect('system')">
                     <el-icon><Monitor /></el-icon>
                     <span>系统 Hosts</span>
+                    <el-button
+                        type="info"
+                        size="small"
+                        :icon="QuestionFilled"
+                        @click.stop="openHelpWindow"
+                        circle
+                        class="help-button" />
                 </div>
 
                 <!-- 默认配置 -->
@@ -102,7 +109,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Check, Delete, Monitor, Document, Select, Close, CircleCheck } from '@element-plus/icons-vue'
+import { Plus, Check, Delete, Monitor, Document, Select, Close, CircleCheck, QuestionFilled } from '@element-plus/icons-vue'
 import { useHostsEntries } from '../composables/useHostsEntries.js'
 import { EditorView, basicSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
@@ -569,6 +576,11 @@ function handleWheel(event) {
         // 保存缩放级别（使用 hostsbox API）
         window.hostsbox.saveZoomLevel(zoomLevel.value)
     }
+}
+
+// 打开帮助窗口
+function openHelpWindow() {
+    window.hostsbox.openHelpWindow()
 }
 </script>
 
