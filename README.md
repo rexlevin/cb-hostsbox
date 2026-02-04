@@ -168,4 +168,4 @@ cb-hostsbox/
 
 ## 许可证
 
-Apache-2.0
+MIT License

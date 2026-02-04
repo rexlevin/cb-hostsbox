@@ -6,7 +6,8 @@
         "help.html",
         "app.json",
         "README.md",
-        "HISTORY.md"
+        "HISTORY.md",
+        "LICENSE"
     ],
     "outputDir": "./dist"
 }
