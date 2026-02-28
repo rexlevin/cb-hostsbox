@@ -7,7 +7,7 @@
     "homepage": "https://github.com/rexlevin/cb-hostsbox",
     "main": "build/index.html",
     "logo": "public/logo.png",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "window": {
         "minWidth": 1000,
         "minHeight": 600,

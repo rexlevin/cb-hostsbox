@@ -364,10 +364,10 @@ contextBridge.exposeInMainWorld('hostsbox', {
     // 打开帮助窗口
     openHelpWindow: () => {
         try {
-            window.canbox.win.createWindow(
+            canbox.win.createWindow(
                 {},
                 {
-                    url: 'help.html',
+                    url: '#/help',
                     title: '帮助 - CB HostsBox',
                     escClose: true
                 }
