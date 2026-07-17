@@ -4,6 +4,30 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [1.1.1] - 2026-07-17
+
+### feat | 新功能 / Features
+
+迁移到 canbox-core 新架构，通过注入启动并获得统一运行时环境
+实现跨平台提权写入 hosts（Linux pkexec / macOS osascript / Windows PowerShell）
+新增 Ctrl+N 快捷键快速创建自定义配置
+新增 Ctrl+= / Ctrl+- 快捷键缩放界面
+为自定义配置的添加按钮增加 tooltip 提示
+帮助页快捷键说明补充 Ctrl+N、Ctrl+=、Ctrl+- 描述
+配置 GitHub Actions 自动发布工作流
+修复创建配置时 missing_id 错误，自动生成文档 _id
+开发环境以 detach 模式打开 DevTools
+
+Migrate to canbox-core architecture, launched via injection with unified runtime
+Implement cross-platform privilege escalation for hosts writing (Linux pkexec / macOS osascript / Windows PowerShell)
+Add Ctrl+N shortcut to quickly create custom configuration
+Add Ctrl+= / Ctrl+- shortcuts to zoom interface
+Add tooltip to the add button for custom configurations
+Update help page shortcuts with Ctrl+N, Ctrl+=, Ctrl+- descriptions
+Configure GitHub Actions auto-release workflow
+Fix missing_id error when creating configuration by auto-generating document _id
+Open DevTools in detach mode during development
+
 ## [1.1.0] - 2026-07-17
 
 ### feat | 新功能 / Features
