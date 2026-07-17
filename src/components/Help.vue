@@ -6,6 +6,9 @@
                 <div class="tab-content">
                     <h3>界面操作</h3>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>滚轮</kbd></span> 缩放界面（0.8x - 1.5x）</p>
+                    <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>=</kbd></span> 放大界面</p>
+                    <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>-</kbd></span> 缩小界面</p>
+                    <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>N</kbd></span> 新增自定义配置</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>S</kbd></span> 保存当前编辑内容</p>
                     <p><span class="key-combo"><kbd>Esc</kbd></span> 关闭搜索/替换面板</p>
 
@@ -61,7 +64,7 @@
                     <div class="info-list">
                         <div class="info-item">
                             <span class="label">版本</span>
-                            <span class="value">1.0.0</span>
+                            <span class="value">{{ appVersion }}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">作者</span>
@@ -93,6 +96,7 @@
 import { ref } from 'vue'
 
 const activeTab = ref('shortcuts')
+const appVersion = __APP_VERSION__
 </script>
 
 <style scoped>

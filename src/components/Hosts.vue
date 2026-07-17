@@ -34,7 +34,9 @@
                 <!-- 自定义配置标题 -->
                 <div class="section-header">
                     <span>自定义配置</span>
-                    <el-button type="primary" size="small" :icon="Plus" @click="showAddEntryDialog" circle />
+                    <el-tooltip content="新增 ctrl+n" placement="bottom">
+                        <el-button type="primary" size="small" :icon="Plus" @click="showAddEntryDialog" circle />
+                    </el-tooltip>
                 </div>
             </div>
 
@@ -182,16 +184,16 @@ const zoomLevel = ref(1)
 const MIN_ZOOM = 0.8
 const MAX_ZOOM = 1.5
 const ZOOM_STEP = 0.1
-const ZOOM_STORE_KEY = 'hostsbox-zoom-level'
 
 // 初始化
 onMounted(async () => {
     await initApp()
 
-    // 恢复保存的缩放级别（使用 hostsbox API）
-    const savedZoom = window.hostsbox.getZoomLevel()
+    // 恢复保存的缩放级别（使用 hostsbox API，异步 IPC）
+    const savedZoom = await window.hostsbox.getZoomLevel()
     if (savedZoom !== null && savedZoom !== undefined) {
         zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, savedZoom))
+        window.hostsbox.setZoom(zoomLevel.value)
     }
 
     document.addEventListener('keyup', handleKeyPress)
@@ -374,8 +376,8 @@ function initEditorIfNeeded() {
 }
 
 // 打开 hosts 目录
-function openHostsDirectory() {
-    const result = window.hostsbox.openHostsDir()
+async function openHostsDirectory() {
+    const result = await window.hostsbox.openHostsDir()
     if (!result.success) {
         ElMessage.error('打开目录失败：' + result.msg)
     }
@@ -551,6 +553,35 @@ function handleKeyPress(event) {
         } else if (activeEntryId.value) {
             saveEntry()
         }
+        return
+    }
+
+    // Ctrl+N 新增自定义配置
+    if (event.ctrlKey && (event.key === 'n' || event.key === 'N')) {
+        event.preventDefault()
+        // 对话框已打开时不重复触发，避免清空正在输入的名称
+        if (!addDialogVisible.value && !confirmDialogVisible.value) {
+            showAddEntryDialog()
+        }
+        return
+    }
+
+    // Ctrl+= 放大界面
+    if (event.ctrlKey && (event.key === '=' || event.key === '+')) {
+        event.preventDefault()
+        zoomLevel.value = Math.min(zoomLevel.value + ZOOM_STEP, MAX_ZOOM)
+        window.hostsbox.setZoom(zoomLevel.value)
+        window.hostsbox.saveZoomLevel(zoomLevel.value)
+        return
+    }
+
+    // Ctrl+- 缩小界面
+    if (event.ctrlKey && event.key === '-') {
+        event.preventDefault()
+        zoomLevel.value = Math.max(zoomLevel.value - ZOOM_STEP, MIN_ZOOM)
+        window.hostsbox.setZoom(zoomLevel.value)
+        window.hostsbox.saveZoomLevel(zoomLevel.value)
+        return
     }
 }
 
@@ -573,6 +604,8 @@ function handleWheel(event) {
             zoomLevel.value = Math.max(zoomLevel.value - ZOOM_STEP, MIN_ZOOM)
         }
 
+        // 应用缩放到 webFrame
+        window.hostsbox.setZoom(zoomLevel.value)
         // 保存缩放级别（使用 hostsbox API）
         window.hostsbox.saveZoomLevel(zoomLevel.value)
     }

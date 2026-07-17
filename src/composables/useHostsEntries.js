@@ -74,7 +74,7 @@ export function useHostsEntries() {
       }
 
       // 获取系统 hosts
-      const hostsResult = window.hostsbox.getHosts()
+      const hostsResult = await window.hostsbox.getHosts()
       if (hostsResult.success) {
         systemHosts.value = hostsResult.data
       } else {
@@ -91,13 +91,13 @@ export function useHostsEntries() {
     /**
      * 选择系统 hosts（显示当前系统 hosts 文件内容）
      */
-    function selectSystemHosts() {
+    async function selectSystemHosts() {
         activeTab.value = 'system'
         activeEntryId.value = ''
         isEditingDefault.value = false
 
         // 直接读取系统 hosts 文件
-        const hostsResult = window.hostsbox.getHosts()
+        const hostsResult = await window.hostsbox.getHosts()
         if (hostsResult.success) {
             currentContent.value = hostsResult.data
         } else {
@@ -487,8 +487,8 @@ export function useHostsEntries() {
     /**
      * 打开 hosts 目录
      */
-    function openHostsDirectory() {
-        const result = window.hostsbox.openHostsDir()
+    async function openHostsDirectory() {
+        const result = await window.hostsbox.openHostsDir()
         if (!result.success) {
             ElMessage.error('打开目录失败：' + result.msg)
         }

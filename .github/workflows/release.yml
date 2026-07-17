@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout APP
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmmirror.com/
+
+      - name: Set Electron mirror
+        run: echo "ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        run: npm run build
+
+      - name: Build app.asar (electron-builder)
+        run: npm run dist
+
+      - name: Checkout canbox-developer
+        uses: actions/checkout@v4
+        with:
+          repository: canbox-io/canbox-developer
+          path: canbox-developer
+
+      - name: Install adm-zip for publish script
+        run: npm install --no-save adm-zip
+
+      - name: Pack canbox zip
+        run: node canbox-developer/scripts/canbox-publish.js --source . --resources dist/linux-unpacked/resources/ --out release/
+
+      - name: Extract changelog for this version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; print; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > changelog-extract.md
+          echo "Extracted changelog:"
+          cat changelog-extract.md
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.zip
+          body_path: changelog-extract.md
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
