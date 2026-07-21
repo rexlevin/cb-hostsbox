@@ -4,6 +4,22 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [1.1.2] - 2026-07-21
+
+### feat | 新功能 / Features
+
+electron多版本管理支持
+
+Support Electron multi-version management
+
+### chore | 维护 / Maintenance
+
+升级 Electron 版本至 42.5.1
+添加应用配置
+
+Upgrade Electron to version 42.5.1
+Add app configuration
+
 ## [1.1.1] - 2026-07-17
 
 ### feat | 新功能 / Features
