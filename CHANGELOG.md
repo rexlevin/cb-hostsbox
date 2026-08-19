@@ -4,6 +4,22 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [1.1.3] - 2026-08-19
+
+### fix | 问题修复 / Bug Fixes
+
+修复 hosts 应用校验时因换行符差异导致的误判问题（Windows 下 LF/CRLF 不一致触发"内容验证不通过"）
+锁定 electron 版本为 42.5.1，start 脚本使用相对路径
+
+Fix hosts apply validation false-negative caused by line ending differences (LF/CRLF mismatch on Windows triggers "content verification failed")
+Lock electron version to 42.5.1, start script uses relative path
+
+### chore | 维护 / Maintenance
+
+优化 CI 构建的 npm 和 Electron 镜像源选择逻辑，自动选用最快源
+
+Optimize CI build npm and Electron mirror source selection logic, automatically use the fastest source
+
 ## [1.1.2] - 2026-07-21
 
 ### feat | 新功能 / Features
