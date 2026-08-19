@@ -80,13 +80,12 @@ ipcMain.handle('hostsbox.applyHosts', async (_e, content) => {
         }
 
         if (actualContent) {
-            const normalizedExpected = content.trim();
-            const normalizedActual = actualContent.trim();
-            const sampleLength = Math.min(100, normalizedExpected.length, normalizedActual.length);
-            if (normalizedExpected.substring(0, sampleLength) === normalizedActual.substring(0, sampleLength)) {
-                return { success: true, code: 'success' };
-            }
-            if (normalizedExpected.length === normalizedActual.length) {
+            // 归一化换行符后再比较：Windows cmd 重定向（type >）会把 LF 转为 CRLF，
+            // 而数据库中存储的 content 可能是 LF-only，导致字节级比较失败。
+            // 统一归一化为 LF 后比较，避免换行符差异导致误判。
+            const normalizedExpected = content.replace(/\r\n/g, '\n').trim();
+            const normalizedActual = actualContent.replace(/\r\n/g, '\n').trim();
+            if (normalizedExpected === normalizedActual) {
                 return { success: true, code: 'success' };
             }
         }
