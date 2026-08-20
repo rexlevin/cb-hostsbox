@@ -266,9 +266,12 @@ function createWindow() {
     });
 
     const isDev = process.env.NODE_ENV === 'development';
+    console.log('[cb-hostsbox] NODE_ENV =', JSON.stringify(process.env.NODE_ENV), 'isDev =', isDev);
     if (isDev) {
         mainWindow.loadURL('http://localhost:5175');
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
+        mainWindow.webContents.on('did-finish-load', () => {
+            mainWindow.webContents.openDevTools({ mode: 'detach' });
+        });
     } else {
         mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
     }
