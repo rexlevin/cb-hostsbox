@@ -2,7 +2,33 @@
 
 本文件记录项目的所有版本变更。
 
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
+格式基于 [Keep A Changelog](https://keepachangelog.com/zh-CN/)。
+
+## [1.1.4] - 2026-10-22
+
+### feat | 新功能 / Features
+
+左侧栏新增拖拽分隔条，可自由调整宽度并在重启后恢复
+编辑器新增自动换行开关，支持 Alt+Z 快捷切换
+新增 Ctrl+, 快捷键打开设置，设置入口改为齿轮图标
+帮助窗口改为随主窗口的子窗口，自动隐藏菜单栏
+
+Add draggable splitter to resize the left sidebar, with width persisted across restarts
+Add word-wrap toggle in the editor, switchable with Alt+Z
+Add Ctrl+, shortcut to open settings, replace settings entry with a gear icon
+Make help window a child window of the main window with auto-hidden menu bar
+
+### fix | 问题修复 / Bug Fixes
+
+开发环境下延迟打开开发者工具，并输出环境变量日志
+
+Delay DevTools opening in development and log environment variables
+
+### chore | 维护 / Maintenance
+
+.canbox-app 配置新增 category 字段（network）
+
+Add category field (network) to .canbox-app configuration
 
 ## [1.1.3] - 2026-08-19
 
