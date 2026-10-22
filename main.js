@@ -150,6 +150,10 @@ ipcMain.handle('hostsbox.openHelpWindow', () => {
         minHeight: 400,
         resizable: true,
         icon: path.join(__dirname, 'public', 'logo.png'),
+        // 与 editbox 设置窗口一致：作为主窗口的子窗口，随主窗口最小化/关闭，
+        // 不单独出现在任务栏，也不再是一个完全独立的顶层窗口
+        parent: mainWindow || undefined,
+        autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -157,6 +161,8 @@ ipcMain.handle('hostsbox.openHelpWindow', () => {
             sandbox: false
         }
     });
+    helpWindow.removeMenu();
+    helpWindow.setMenuBarVisibility(false);
 
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
@@ -181,14 +187,20 @@ ipcMain.handle('hostsbox.openHelpWindow', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 辅助：读取应用设置 store（canbox-core）
+// ---------------------------------------------------------------------------
+function getSettingsStore() {
+    const CORE_PATH = global.__CANBOX_CORE_PATH__;
+    const store = require(path.join(CORE_PATH, 'lib', 'store'));
+    return store.getStore(global.__CANBOX_ENV__.appId, 'settings', path.join(global.__CANBOX_ENV__.usersPath, 'data'));
+}
+
+// ---------------------------------------------------------------------------
 // IPC: 缩放级别持久化（通过 canbox-core store）
 // ---------------------------------------------------------------------------
 ipcMain.handle('hostsbox.getZoomLevel', () => {
     try {
-        const CORE_PATH = global.__CANBOX_CORE_PATH__;
-        const store = require(path.join(CORE_PATH, 'lib', 'store'));
-        const zoomStore = store.getStore(global.__CANBOX_ENV__.appId, 'settings', path.join(global.__CANBOX_ENV__.usersPath, 'data'));
-        const level = zoomStore.get('zoomLevel');
+        const level = getSettingsStore().get('zoomLevel');
         return level !== undefined ? parseFloat(level) : 1;
     } catch (error) {
         console.error('[cb-hostsbox] 获取缩放级别失败:', error);
@@ -198,12 +210,33 @@ ipcMain.handle('hostsbox.getZoomLevel', () => {
 
 ipcMain.handle('hostsbox.saveZoomLevel', (_e, level) => {
     try {
-        const CORE_PATH = global.__CANBOX_CORE_PATH__;
-        const store = require(path.join(CORE_PATH, 'lib', 'store'));
-        const zoomStore = store.getStore(global.__CANBOX_ENV__.appId, 'settings', path.join(global.__CANBOX_ENV__.usersPath, 'data'));
-        zoomStore.set('zoomLevel', level);
+        getSettingsStore().set('zoomLevel', level);
     } catch (error) {
         console.error('[cb-hostsbox] 保存缩放级别失败:', error);
+    }
+});
+
+// ---------------------------------------------------------------------------
+// IPC: 左侧栏宽度持久化（通过 canbox-core store）
+// ---------------------------------------------------------------------------
+ipcMain.handle('hostsbox.getSidebarWidth', () => {
+    try {
+        const width = getSettingsStore().get('sidebarWidth');
+        return width !== undefined ? parseInt(width, 10) : null;
+    } catch (error) {
+        console.error('[cb-hostsbox] 获取左侧栏宽度失败:', error);
+        return null;
+    }
+});
+
+ipcMain.handle('hostsbox.saveSidebarWidth', (_e, width) => {
+    try {
+        const value = Math.round(Number(width));
+        if (Number.isFinite(value)) {
+            getSettingsStore().set('sidebarWidth', value);
+        }
+    } catch (error) {
+        console.error('[cb-hostsbox] 保存左侧栏宽度失败:', error);
     }
 });
 

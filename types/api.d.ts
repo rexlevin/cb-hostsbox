@@ -19,6 +19,10 @@ declare global {
             getZoomLevel: () => Promise<number>;
             /** 保存缩放级别 */
             saveZoomLevel: (level: number) => void;
+            /** 获取左侧栏宽度（未保存过时返回 null） */
+            getSidebarWidth: () => Promise<number | null>;
+            /** 保存左侧栏宽度 */
+            saveSidebarWidth: (width: number) => void;
             /** 打开帮助窗口 */
             openHelpWindow: () => void;
             /** 设置 webFrame 缩放 */

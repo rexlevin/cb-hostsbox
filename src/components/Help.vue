@@ -10,9 +10,11 @@
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>-</kbd></span> 缩小界面</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>N</kbd></span> 新增自定义配置</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>S</kbd></span> 保存当前编辑内容</p>
+                    <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>,</kbd></span> 打开设置</p>
                     <p><span class="key-combo"><kbd>Esc</kbd></span> 关闭搜索/替换面板</p>
 
                     <h3>编辑器操作 (CodeMirror)</h3>
+                    <p><span class="key-combo"><kbd>Alt</kbd><span class="key-separator">+</span><kbd>Z</kbd></span> 切换自动换行</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>F</kbd></span> 搜索</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>H</kbd></span> 搜索并替换</p>
                     <p><span class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>G</kbd></span> 跳转到下一个搜索结果</p>

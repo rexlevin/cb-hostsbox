@@ -64,6 +64,23 @@ contextBridge.exposeInMainWorld('hostsbox', {
         });
     },
 
+    // 获取左侧栏宽度
+    getSidebarWidth: async () => {
+        try {
+            return await ipcRenderer.invoke('hostsbox.getSidebarWidth');
+        } catch (error) {
+            console.error('[cb-hostsbox preload] 获取左侧栏宽度失败:', error);
+            return null;
+        }
+    },
+
+    // 保存左侧栏宽度
+    saveSidebarWidth: (width) => {
+        ipcRenderer.invoke('hostsbox.saveSidebarWidth', width).catch(err => {
+            console.error('[cb-hostsbox preload] 保存左侧栏宽度失败:', err);
+        });
+    },
+
     // 打开帮助窗口
     openHelpWindow: () => {
         ipcRenderer.invoke('hostsbox.openHelpWindow').catch(err => {

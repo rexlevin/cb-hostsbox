@@ -1,19 +1,18 @@
 <template>
     <div class="main-container" :style="{ '--zoom-level': zoomLevel }">
         <!-- 左侧边栏 -->
-        <aside class="sidebar">
+        <aside class="sidebar" :style="{ width: sidebarWidth + 'px' }">
             <div class="sidebar-fixed">
                 <!-- 系统 Hosts -->
                 <div class="nav-item" :class="{ active: activeTab === 'system' }" @click="handleMenuSelect('system')">
                     <el-icon><Monitor /></el-icon>
                     <span>系统 Hosts</span>
-                    <el-button
-                        type="info"
-                        size="small"
-                        :icon="QuestionFilled"
-                        @click.stop="openHelpWindow"
-                        circle
-                        class="help-button" />
+                    <el-tooltip content="设置（Ctrl+,）" placement="bottom">
+                        <svg class="settings-button" viewBox="0 0 24 24" aria-label="设置" @click.stop="openHelpWindow">
+                            <path
+                                d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                        </svg>
+                    </el-tooltip>
                 </div>
 
                 <!-- 默认配置 -->
@@ -21,9 +20,9 @@
                     <el-icon><Document /></el-icon>
                     <span>默认</span>
                     <el-button
-                        v-if="activeTab === 'default'"
                         type="success"
                         size="small"
+                        class="default-edit-button"
                         @click.stop="handleDefaultButtonClick">
                         {{ isEditingDefault ? '保存生效' : '编辑' }}
                     </el-button>
@@ -75,11 +74,19 @@
             </div>
         </aside>
 
+        <!-- 左右分栏拖拽手柄 -->
+        <div class="sidebar-resizer" title="拖动调整左侧栏宽度" @mousedown.prevent="startResize"></div>
+
         <!-- 右侧内容区 -->
         <main class="content-area">
             <!-- 顶部工具栏 -->
-            <div v-if="activeEntryId && !isReadOnly" class="editor-toolbar">
-                <el-button type="danger" size="small" :icon="Delete" @click="confirmDeleteEntry">删除配置</el-button>
+            <div class="editor-toolbar">
+                <el-button v-if="activeEntryId && !isReadOnly" type="danger" size="small" :icon="Delete"
+                    @click="confirmDeleteEntry">删除配置</el-button>
+                <el-tooltip :content="wrapEnabled ? '关闭自动换行（Alt+Z）' : '开启自动换行（Alt+Z）'" placement="bottom">
+                    <button type="button" class="wrap-btn" :class="{ on: wrapEnabled }"
+                        :aria-label="wrapEnabled ? '关闭自动换行' : '开启自动换行'" @click="toggleWrap">换行</button>
+                </el-tooltip>
             </div>
             <div ref="editorRef" class="editor-area"></div>
         </main>
@@ -111,10 +118,10 @@
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Check, Delete, Monitor, Document, Select, Close, CircleCheck, QuestionFilled } from '@element-plus/icons-vue'
+import { Plus, Check, Delete, Monitor, Document, Select, Close, CircleCheck } from '@element-plus/icons-vue'
 import { useHostsEntries } from '../composables/useHostsEntries.js'
 import { EditorView, basicSetup } from 'codemirror'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Compartment } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { StreamLanguage } from '@codemirror/language'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
@@ -185,6 +192,15 @@ const MIN_ZOOM = 0.8
 const MAX_ZOOM = 1.5
 const ZOOM_STEP = 0.1
 
+// 左侧栏宽度（可拖拽调整，持久化到 canbox store）
+const sidebarWidth = ref(320)
+const MIN_SIDEBAR_WIDTH = 220
+const MAX_SIDEBAR_WIDTH = 640
+
+// 编辑器自动换行
+const wrapEnabled = ref(false)
+const wrapCompartment = new Compartment()
+
 // 初始化
 onMounted(async () => {
     await initApp()
@@ -194,6 +210,12 @@ onMounted(async () => {
     if (savedZoom !== null && savedZoom !== undefined) {
         zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, savedZoom))
         window.hostsbox.setZoom(zoomLevel.value)
+    }
+
+    // 恢复保存的左侧栏宽度
+    const savedSidebarWidth = await window.hostsbox.getSidebarWidth()
+    if (savedSidebarWidth !== null && savedSidebarWidth !== undefined) {
+        sidebarWidth.value = clampSidebarWidth(savedSidebarWidth)
     }
 
     document.addEventListener('keyup', handleKeyPress)
@@ -240,6 +262,7 @@ function initEditor() {
                 basicSetup,
                 oneDark,
                 StreamLanguage.define(properties),
+                wrapCompartment.of(wrapExtension(wrapEnabled.value)),
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged && !isUpdatingFromWatch) {
                         currentContent.value = update.state.doc.toString()
@@ -302,6 +325,7 @@ watch(isReadOnly, (newVal) => {
             basicSetup,
             oneDark,
             StreamLanguage.define(properties),
+            wrapCompartment.of(wrapExtension(wrapEnabled.value)),
             EditorView.updateListener.of((update) => {
                 if (update.docChanged && !isUpdatingFromWatch) {
                     currentContent.value = update.state.doc.toString()
@@ -334,6 +358,51 @@ watch(isReadOnly, (newVal) => {
     }
 })
 
+// 自动换行扩展：开启时软换行，不出现横向滚动条
+function wrapExtension(on) {
+    return on ? EditorView.lineWrapping : []
+}
+
+// 切换自动换行
+function toggleWrap() {
+    wrapEnabled.value = !wrapEnabled.value
+    if (editorView) {
+        editorView.dispatch({
+            effects: wrapCompartment.reconfigure(wrapExtension(wrapEnabled.value))
+        })
+    }
+}
+
+// 左侧栏宽度范围约束（同时不超过窗口宽度的 60%）
+function clampSidebarWidth(width) {
+    const max = Math.min(MAX_SIDEBAR_WIDTH, window.innerWidth * 0.6)
+    return Math.round(Math.min(max, Math.max(MIN_SIDEBAR_WIDTH, Number(width) || 320)))
+}
+
+// 拖拽左侧栏右边界调整宽度
+function startResize(event) {
+    const startX = event.clientX
+    const startWidth = sidebarWidth.value
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+
+    const onMouseMove = (moveEvent) => {
+        sidebarWidth.value = clampSidebarWidth(startWidth + moveEvent.clientX - startX)
+    }
+
+    const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+        document.body.style.userSelect = ''
+        document.body.style.cursor = ''
+        window.hostsbox.saveSidebarWidth(sidebarWidth.value)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+}
+
 // 菜单选择处理
 function handleMenuSelect(index) {
     if (index === 'system') {
@@ -360,7 +429,10 @@ async function handleDefaultButtonClick() {
         // 点击"保存生效"，保存并应用到系统
         await saveDefaultAndApply()
     } else {
-        // 点击"编辑"，进入编辑模式
+        // 点击"编辑"，进入编辑模式（若当前不在默认配置页，先切换过去）
+        if (activeTab.value !== 'default') {
+            selectDefault()
+        }
         editDefault()
         nextTick(() => {
             initEditorIfNeeded()
@@ -563,6 +635,22 @@ function handleKeyPress(event) {
         if (!addDialogVisible.value && !confirmDialogVisible.value) {
             showAddEntryDialog()
         }
+        return
+    }
+
+    // Ctrl+, 打开设置
+    if (event.ctrlKey && event.key === ',') {
+        event.preventDefault()
+        if (!addDialogVisible.value && !confirmDialogVisible.value) {
+            openHelpWindow()
+        }
+        return
+    }
+
+    // Alt+Z 切换自动换行
+    if (event.altKey && !event.ctrlKey && !event.metaKey && (event.key === 'z' || event.key === 'Z')) {
+        event.preventDefault()
+        toggleWrap()
         return
     }
 
