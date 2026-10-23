@@ -219,6 +219,7 @@ onMounted(async () => {
     }
 
     document.addEventListener('keyup', handleKeyPress)
+    document.addEventListener('keydown', handleWrapShortcut)
     document.addEventListener('wheel', handleWheel, { passive: false })
     nextTick(() => {
         initEditor()
@@ -227,6 +228,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('keyup', handleKeyPress)
+    document.removeEventListener('keydown', handleWrapShortcut)
     document.removeEventListener('wheel', handleWheel)
     if (saveTimer) {
         clearTimeout(saveTimer)
@@ -615,6 +617,23 @@ async function handleEditorBlur() {
     }
 }
 
+// Alt+Z 切换自动换行（在 keydown 阶段处理：快速按键时 Alt 可能先于字母释放，
+// 导致 keyup 事件里失去 altKey 修饰键，快捷键会失效）
+function handleWrapShortcut(event) {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return
+    }
+    if (event.code !== 'KeyZ' && event.key !== 'z' && event.key !== 'Z') {
+        return
+    }
+    // 长按产生的重复 keydown 不再反复切换
+    if (event.repeat) {
+        return
+    }
+    event.preventDefault()
+    toggleWrap()
+}
+
 // 处理按键事件
 function handleKeyPress(event) {
     // Ctrl+S 保存
@@ -644,13 +663,6 @@ function handleKeyPress(event) {
         if (!addDialogVisible.value && !confirmDialogVisible.value) {
             openHelpWindow()
         }
-        return
-    }
-
-    // Alt+Z 切换自动换行
-    if (event.altKey && !event.ctrlKey && !event.metaKey && (event.key === 'z' || event.key === 'Z')) {
-        event.preventDefault()
-        toggleWrap()
         return
     }
 
