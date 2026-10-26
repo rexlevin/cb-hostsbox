@@ -82,7 +82,7 @@
                         </div>
                         <div class="info-item">
                             <span class="label">Gitee 仓库</span>
-                            <a href="https://gitee.com/lizl6/cb-hostsbox" target="_blank" class="value link">gitee.com/lizl6/cb-hostsbox</a>
+                            <a href="https://github.com/rexlevin/cb-hostsbox" target="_blank" class="value link">github.com/rexlevin/cb-hostsbox</a>
                         </div>
                     </div>
                     <div class="footer">
