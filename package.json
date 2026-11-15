@@ -58,6 +58,11 @@
             "target": [
                 "dir"
             ]
+        },
+        "win": {
+            "target": [
+                "dir"
+            ]
         }
     }
 }
